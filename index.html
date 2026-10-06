@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Changer</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --fg:#1d2430; --muted:#667085; --line:#e3e6eb; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171c; --card:#1d2128; --fg:#e8ebf0; --muted:#98a2b3; --line:#2c323c; --accent:#6b9bff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,"Noto Sans Thai",sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 20px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  h2 { font-size:1rem; margin:0 0 12px; }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { outline:2px solid var(--accent); }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .presets button { flex:1 1 110px; }
+  label.s { display:grid; grid-template-columns:130px 1fr 64px; gap:8px; align-items:center; margin:6px 0; font-size:.95rem; }
+  label.s output { text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; }
+  audio { width:100%; margin-top:8px; }
+  .status { color:var(--muted); font-size:.9rem; margin-top:8px; min-height:1.4em; }
+  .rec { color:#d92d20; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Voice Changer</h1>
+  <p class="sub">อัดเสียงหรืออัปโหลดไฟล์ แล้วแปลงเป็นเสียงผู้หญิง คนแก่ เด็ก ฯลฯ (ประมวลผลในเบราว์เซอร์ ไม่ส่งไฟล์ไปไหน)</p>
+
+  <section>
+    <h2>1. ใส่เสียงต้นฉบับ</h2>
+    <div class="row">
+      <button id="recBtn" class="primary">● อัดเสียง</button>
+      <input id="file" type="file" accept="audio/*">
+    </div>
+    <div id="recInfo" class="status"></div>
+    <audio id="origAudio" controls hidden></audio>
+  </section>
+
+  <section>
+    <h2>2. เลือกเสียง</h2>
+    <div class="row presets" id="presets"></div>
+    <div style="margin-top:12px">
+      <label class="s">ระดับเสียง (Pitch)<input id="pitch" type="range" min="-12" max="12" step="0.5"><output></output></label>
+      <label class="s">ความเร็ว<input id="speed" type="range" min="0.6" max="1.5" step="0.05"><output></output></label>
+      <label class="s">เสียงสั่น (คนแก่)<input id="vibrato" type="range" min="0" max="1" step="0.05"><output></output></label>
+      <label class="s">เสียงเบาแกว่ง<input id="tremolo" type="range" min="0" max="1" step="0.05"><output></output></label>
+      <label class="s">ความทุ้ม/แหลม<input id="tone" type="range" min="-12" max="12" step="1"><output></output></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. ฟังและบันทึก</h2>
+    <div class="row">
+      <button id="goBtn" class="primary" disabled>แปลงเสียง</button>
+      <button id="dlBtn" disabled>ดาวน์โหลด WAV</button>
+    </div>
+    <audio id="outAudio" controls hidden></audio>
+    <div id="status" class="status"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+// ---------- Presets ----------
+const PRESETS = {
+  "ต้นฉบับ":   { pitch: 0,   speed: 1,    vibrato: 0,    tremolo: 0,    tone: 0 },
+  "ผู้หญิง":   { pitch: 4,   speed: 1,    vibrato: 0,    tremolo: 0,    tone: 3 },
+  "เด็ก":      { pitch: 7,   speed: 1.05, vibrato: 0,    tremolo: 0,    tone: 4 },
+  "ผู้ชายทุ้ม": { pitch: -4,  speed: 0.97, vibrato: 0,    tremolo: 0,    tone: -4 },
+  "คนแก่":     { pitch: -1,  speed: 0.88, vibrato: 0.55, tremolo: 0.25, tone: -5 },
+  "คุณยาย":    { pitch: 2.5, speed: 0.85, vibrato: 0.6,  tremolo: 0.3,  tone: -2 },
+};
+const sliders = ["pitch", "speed", "vibrato", "tremolo", "tone"];
+const fmt = { pitch: v => (v > 0 ? "+" : "") + v + " st", speed: v => v.toFixed(2) + "x",
+              vibrato: v => Math.round(v * 100) + "%", tremolo: v => Math.round(v * 100) + "%",
+              tone: v => (v > 0 ? "+" : "") + v + " dB" };
+
+function setParams(p) {
+  for (const k of sliders) { $(k).value = p[k]; refreshOut(k); }
+}
+function getParams() {
+  const p = {};
+  for (const k of sliders) p[k] = parseFloat($(k).value);
+  return p;
+}
+function refreshOut(k) { $(k).parentElement.querySelector("output").textContent = fmt[k](parseFloat($(k).value)); }
+
+for (const k of sliders) $(k).addEventListener("input", () => { refreshOut(k); clearActive(); });
+function clearActive() { document.querySelectorAll("#presets button").forEach(b => b.classList.remove("on")); }
+for (const [name, p] of Object.entries(PRESETS)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => { setParams(p); clearActive(); b.classList.add("on"); };
+  $("presets").appendChild(b);
+}
+setParams(PRESETS["ต้นฉบับ"]);
+
+// ---------- DSP ----------
+function mixToMono(buf) {
+  const out = new Float32Array(buf.length);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < d.length; i++) out[i] += d[i] / buf.numberOfChannels;
+  }
+  return out;
+}
+
+// Linear-interpolation resample: reading at `rate` speed (rate>1 => shorter, higher pitch)
+function resample(x, rate) {
+  const n = Math.floor((x.length - 1) / rate);
+  const y = new Float32Array(Math.max(n, 1));
+  for (let i = 0; i < y.length; i++) {
+    const p = i * rate, i0 = Math.floor(p), f = p - i0;
+    y[i] = x[i0] * (1 - f) + (x[i0 + 1] ?? x[i0]) * f;
+  }
+  return y;
+}
+
+// SOLA time stretch: output length ~= x.length * s, pitch preserved.
+function stretch(x, s, sr) {
+  if (Math.abs(s - 1) < 1e-3) return x;
+  const N = 2 * Math.round(sr * 0.04 / 2);     // frame ~40ms
+  const Hs = N / 2;                            // synthesis hop (50% overlap)
+  const Ha = Hs / s;                           // analysis hop
+  const seek = Math.round(sr * 0.012);
+  const outLen = Math.ceil(x.length * s) + N * 2;
+  const out = new Float32Array(outLen), wsum = new Float32Array(outLen);
+  const win = new Float32Array(N);
+  for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+
+  let k = 0, lastEnd = 0;
+  for (let outPos = 0; ; k++, outPos += Hs) {
+    let inPos = Math.round(k * Ha);
+    if (inPos + N + seek >= x.length) break;
+    let best = 0;
+    if (k > 0) {
+      // find offset whose first Hs samples best match what is already in the output
+      let bestC = -Infinity;
+      for (let d = -seek; d <= seek; d += 2) {
+        const p = inPos + d;
+        if (p < 0) continue;
+        let c = 0;
+        for (let i = 0; i < Hs; i += 2) {
+          const w = wsum[outPos + i] || 1;
+          c += (out[outPos + i] / w) * x[p + i];
+        }
+        if (c > bestC) { bestC = c; best = d; }
+      }
+    }
+    const p = Math.max(0, inPos + best);
+    for (let i = 0; i < N; i++) { out[outPos + i] += x[p + i] * win[i]; wsum[outPos + i] += win[i]; }
+    lastEnd = outPos + N;
+  }
+  const len = Math.min(lastEnd, Math.round(x.length * s));
+  const y = new Float32Array(len);
+  for (let i = 0; i < len; i++) y[i] = wsum[i] > 1e-3 ? out[i] / wsum[i] : 0;
+  return y;
+}
+
+async function processAudio(buf, p) {
+  const sr = buf.sampleRate;
+  let x = mixToMono(buf);
+  const ratio = Math.pow(2, p.pitch / 12);
+  // pitch shift = resample by ratio (changes pitch+length), then stretch back
+  if (Math.abs(ratio - 1) > 1e-4) {
+    x = resample(x, ratio);
+    x = stretch(x, ratio, sr);
+  }
+  // tempo change without pitch change
+  if (Math.abs(p.speed - 1) > 1e-3) x = stretch(x, 1 / p.speed, sr);
+
+  // effects through an OfflineAudioContext
+  const ctx = new OfflineAudioContext(1, x.length + Math.round(sr * 0.1), sr);
+  const b = ctx.createBuffer(1, x.length, sr);
+  b.copyToChannel(x, 0);
+  const src = ctx.createBufferSource(); src.buffer = b;
+  let node = src;
+
+  if (p.vibrato > 0) {                       // pitch wobble via modulated delay
+    const delay = ctx.createDelay(0.1); delay.delayTime.value = 0.01;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 5.5;
+    const depth = ctx.createGain(); depth.gain.value = 0.0012 * p.vibrato;
+    lfo.connect(depth); depth.connect(delay.delayTime); lfo.start();
+    node.connect(delay); node = delay;
+  }
+  if (p.tremolo > 0) {                       // slow volume wobble
+    const g = ctx.createGain(); g.gain.value = 1 - p.tremolo * 0.3;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 4;
+    const depth = ctx.createGain(); depth.gain.value = p.tremolo * 0.3;
+    lfo.connect(depth); depth.connect(g.gain); lfo.start();
+    node.connect(g); node = g;
+  }
+  if (p.tone !== 0) {                        // rough "formant" feel: tilt the spectrum
+    const hi = ctx.createBiquadFilter(); hi.type = "highshelf"; hi.frequency.value = 2500; hi.gain.value = p.tone;
+    const lo = ctx.createBiquadFilter(); lo.type = "lowshelf"; lo.frequency.value = 300; lo.gain.value = -p.tone * 0.6;
+    node.connect(hi); hi.connect(lo); node = lo;
+  }
+  node.connect(ctx.destination);
+  src.start();
+  const rendered = await ctx.startRendering();
+  const y = rendered.getChannelData(0).slice();
+  // normalise to avoid clipping
+  let peak = 0; for (let i = 0; i < y.length; i++) peak = Math.max(peak, Math.abs(y[i]));
+  if (peak > 0) { const g = 0.95 / peak; for (let i = 0; i < y.length; i++) y[i] *= g; }
+  return { samples: y, sampleRate: sr };
+}
+
+function encodeWav(samples, sr) {
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+// ---------- Input (record / upload) ----------
+let srcBuffer = null, outBlob = null, recorder = null, chunks = [];
+const status = (t) => { $("status").textContent = t; };
+
+async function loadBlob(blob, label) {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    srcBuffer = await ac.decodeAudioData(await blob.arrayBuffer());
+    ac.close();
+    $("origAudio").src = URL.createObjectURL(blob); $("origAudio").hidden = false;
+    $("recInfo").textContent = `${label} • ${srcBuffer.duration.toFixed(1)} วินาที`;
+    $("goBtn").disabled = false;
+  } catch (e) {
+    $("recInfo").textContent = "อ่านไฟล์เสียงไม่ได้: " + e.message;
+  }
+}
+$("file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) loadBlob(f, f.name); });
+
+$("recBtn").addEventListener("click", async () => {
+  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
+    chunks = []; recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      $("recBtn").textContent = "● อัดเสียง";
+      loadBlob(new Blob(chunks, { type: recorder.mimeType }), "เสียงที่อัด");
+    };
+    recorder.start();
+    $("recBtn").textContent = "■ หยุดอัด";
+    $("recInfo").innerHTML = '<span class="rec">กำลังอัด...</span>';
+  } catch (e) {
+    $("recInfo").textContent = "เปิดไมค์ไม่ได้: " + e.message;
+  }
+});
+
+// ---------- Run ----------
+$("goBtn").addEventListener("click", async () => {
+  if (!srcBuffer) return;
+  $("goBtn").disabled = true; status("กำลังแปลงเสียง...");
+  await new Promise(r => setTimeout(r, 30));   // let the UI paint
+  try {
+    const t0 = performance.now();
+    const { samples, sampleRate } = await processAudio(srcBuffer, getParams());
+    outBlob = encodeWav(samples, sampleRate);
+    $("outAudio").src = URL.createObjectURL(outBlob); $("outAudio").hidden = false;
+    $("outAudio").play().catch(() => {});
+    $("dlBtn").disabled = false;
+    status(`เสร็จแล้ว (${((performance.now() - t0) / 1000).toFixed(1)} วินาที)`);
+  } catch (e) {
+    status("เกิดข้อผิดพลาด: " + e.message);
+  } finally { $("goBtn").disabled = false; }
+});
+
+$("dlBtn").addEventListener("click", () => {
+  if (!outBlob) return;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(outBlob); a.download = "voice-changed.wav"; a.click();
+});
+</script>
+</body>
+</html>
