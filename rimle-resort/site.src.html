@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Mitr:wght@400;500&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  /* Concept: you wake in a dark wooden room, open the shutters, and the whole beach is the window. Layout: sticky hero scrubbed by scroll, then a settled one-page resort site funnelling to one booking request. */
+  /* Concept: you stand in a lit room behind sliding glass doors, slide them open and walk out onto the beach. and the whole beach is the window. Layout: sticky hero scrubbed by scroll, then a settled one-page resort site funnelling to one booking request. */
   :root {
     --canvas: #0a1f2e;
     --panel: #102c40;
@@ -50,7 +50,7 @@
 
   /* hero */
   .hero { position: relative; height: 340vh; }
-  .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #123a5a; --o: 0; --z: 0; --k: 0; --ks: 0; --kd: 1; }
+  .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #123a5a; --o: 0; --pass: 0; --z: 0; --k: 0; --ks: 0; --kd: 1; }
   .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 38% 55%; transform: scale(calc(1.04 + var(--z) * .08)); transform-origin: 50% 0; will-change: transform; }
   .sky-scrim { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(rgba(5,14,22,.38), rgba(5,14,22,0) 46%); opacity: calc(var(--k) * 1); }
   .copy { position: absolute; left: 0; right: 0; top: clamp(78px, 11vh, 120px); padding-inline: max(16px, 6vw); max-width: 980px; text-shadow: var(--tshadow); pointer-events: none; }
@@ -61,16 +61,25 @@
   .sub { font-size: clamp(1rem, 2.2vw, 1.25rem); max-width: 26rem; margin: 10px 0 20px; opacity: var(--ks); transform: translate3d(0, calc((1 - var(--ks)) * 14px), 0); }
   .cta-row { position: absolute; left: max(16px, 6vw); bottom: max(28px, 7vh); display: flex; flex-wrap: wrap; gap: 10px; opacity: var(--ks); transform: translate3d(0, calc((1 - var(--ks)) * 14px), 0); text-shadow: none; }
 
-  .shutter { position: absolute; top: 0; bottom: 0; width: 50.4%; will-change: transform;
+  .photo.soft { filter: blur(15px) brightness(.66) saturate(.9); transform: scale(calc(1.1 + var(--z) * .08)); opacity: calc(1 - var(--o)); }
+  .doors { position: absolute; inset: 0; pointer-events: none; transform-origin: 50% 56%; transform: scale(calc(1 + var(--pass) * 1.25)); opacity: clamp(0, calc(1 - var(--pass) * 1.35), 1); will-change: transform, opacity; }
+  .pane { position: absolute; top: 0; bottom: 0; width: 25.6%; will-change: transform;
+    --f: clamp(5px, .85vw, 12px);
+    box-shadow: inset 0 0 0 var(--f) #0b0d10, inset 0 0 0 calc(var(--f) + 2px) rgba(255,255,255,.1);
     background:
-      linear-gradient(90deg, rgba(0,0,0,.42), rgba(0,0,0,0) 7%, rgba(0,0,0,0) 93%, rgba(0,0,0,.5)),
-      linear-gradient(rgba(255,196,120,.10), rgba(0,0,0,.30)),
-      repeating-linear-gradient(180deg, #7b5738 0 22px, #4b3323 22px 25px, #2f2015 25px 27px); }
-  .shutter.l { left: 0; transform: translate3d(calc(-0.7% - var(--o) * 101%), 0, 0); box-shadow: 8px 0 40px rgba(0,0,0,.5); }
-  .shutter.r { right: 0; transform: translate3d(calc(0.7% + var(--o) * 101%), 0, 0); box-shadow: -8px 0 40px rgba(0,0,0,.5); }
-  .shutter::after { content: ""; position: absolute; top: 46%; width: 10px; height: 64px; border-radius: 6px; background: #1e140d; box-shadow: inset 0 0 0 2px rgba(255,255,255,.06); }
-  .shutter.l::after { right: 18px; } .shutter.r::after { left: 18px; }
-  .room { position: absolute; inset: 0; pointer-events: none; opacity: calc(1 - var(--o)); background: radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0) 40%, rgba(2,8,14,.7) 100%); }
+      radial-gradient(60px 46px at 28% 5%, rgba(255,226,170,.55), transparent 70%),
+      radial-gradient(60px 46px at 74% 5%, rgba(255,226,170,.45), transparent 70%),
+      linear-gradient(112deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 28%, rgba(255,255,255,.07) 52%, rgba(255,255,255,0) 68%),
+      rgba(8,22,34,.22); }
+  .pane.p1 { left: 0; z-index: 1; }
+  .pane.p2 { left: 24.4%; z-index: 3; transform: translate3d(calc(var(--o) * -100%), 0, 0); }
+  .pane.p3 { left: 50%; z-index: 3; transform: translate3d(calc(var(--o) * 100%), 0, 0); }
+  .pane.p4 { left: 74.4%; z-index: 1; }
+  .pane.p2::after, .pane.p3::after { content: ""; position: absolute; top: 44%; width: clamp(4px, .5vw, 7px); height: clamp(60px, 12vh, 120px); border-radius: 4px; background: #05060a; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+  .pane.p2::after { right: calc(var(--f) + 6px); } .pane.p3::after { left: calc(var(--f) + 6px); }
+  .room { position: absolute; inset: 0; pointer-events: none; opacity: calc(1 - var(--o)); background:
+    linear-gradient(rgba(255,206,150,.26), rgba(255,206,150,0) 24%),
+    radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0) 46%, rgba(2,8,14,.62) 100%); }
   .cue { position: absolute; left: 0; right: 0; bottom: max(26px, 5vh); display: grid; justify-items: center; gap: 8px; font-family: var(--font-mono); font-size: .76rem; letter-spacing: .14em; text-shadow: var(--tshadow); opacity: var(--kd); pointer-events: none; }
   .cue i { width: 1px; height: 38px; background: linear-gradient(var(--text), transparent); transform-origin: top; animation: cue 2.6s var(--ease) infinite; }
   @keyframes cue { 0% { transform: scaleY(0); } 55% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
@@ -167,10 +176,10 @@
       <a class="btn" href="#rooms">ดูห้องพัก</a>
       <a class="btn ghost" href="#book">ขอราคา</a>
     </div>
-    <div class="shutter l" aria-hidden="true"></div>
-    <div class="shutter r" aria-hidden="true"></div>
+    <img class="photo soft" src="assets/hero.jpg" alt="" aria-hidden="true">
     <div class="room" aria-hidden="true"></div>
-    <div class="cue" aria-hidden="true"><span>เลื่อนลงเพื่อเปิดหน้าต่าง</span><i></i></div>
+    <div class="doors" aria-hidden="true"><div class="pane p1"></div><div class="pane p2"></div><div class="pane p3"></div><div class="pane p4"></div></div>
+    <div class="cue" aria-hidden="true"><span>เลื่อนลงเพื่อเปิดประตู</span><i></i></div>
   </div>
 </header>
 
@@ -275,11 +284,12 @@
     stage.style.setProperty(name, r);
   }
   function render(p) {
-    put("--o", smooth(p, 0.05, 0.56));                 // shutters
-    put("--z", smooth(p, 0.08, 1));                    // slow push toward the water
+    put("--o", smooth(p, 0.05, 0.38));                 // inner glass panels slide apart
+    put("--pass", smooth(p, 0.38, 0.6));               // walk through the doorway
+    put("--z", smooth(p, 0.1, 1));                     // slow push toward the water
     put("--kd", 1 - smooth(p, 0.0, 0.07));             // scroll cue fades once you start
-    put("--k", clamp((p - 0.56) / 0.2, 0, 1));         // headline words rise
-    put("--ks", clamp((p - 0.74) / 0.14, 0, 1));       // subline and buttons
+    put("--k", clamp((p - 0.58) / 0.2, 0, 1));         // headline words rise
+    put("--ks", clamp((p - 0.76) / 0.14, 0, 1));       // subline and buttons
   }
   function progress() {
     var range = hero.offsetHeight - innerHeight;
