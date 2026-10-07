@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Mitr:wght@400;500&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  /* Concept: a bright, saturated seaside page. The hero is the live beach, washed light on the left so dark type reads, with a white booking card on the right. Below it, a settled one-page resort site in clear blues. */
+  /* Concept: a bright, saturated seaside page. The hero is the still beach photo, washed light on the left so dark type reads, with a white booking card on the right. Below it, a settled one-page resort site in clear blues. */
   :root {
     --canvas: #f4faff;
     --tint: #e6f4fd;
@@ -60,8 +60,6 @@
   .js .hero { --k: 0; --ks: 0; }
   .hero-bg { position: absolute; inset: 0; z-index: -2; background: #8fc9ee; }
   .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 40% 58%; }
-  .sea { opacity: 0; transition: opacity .9s var(--ease); }
-  .sea.on { opacity: 1; }
   .wash { position: absolute; inset: 0; z-index: -1; pointer-events: none; background:
     radial-gradient(85% 100% at 0% 38%, rgba(255,255,255,.9) 0%, rgba(255,255,255,.66) 38%, rgba(255,255,255,.12) 70%, rgba(255,255,255,0) 100%),
     linear-gradient(rgba(255,255,255,.28), rgba(255,255,255,0) 24%); }
@@ -76,12 +74,6 @@
   .hero-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; opacity: var(--ks); }
   .more { color: var(--muted); text-decoration: none; font-size: .95rem; }
   .more:hover { color: var(--blue-2); }
-  .sound { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 8px 18px 8px 14px; border-radius: 999px; font: inherit; font-size: .92rem; color: var(--ink); background: rgba(255,255,255,.8); border: 1px solid var(--line); backdrop-filter: blur(8px); cursor: pointer; transition: background .3s var(--ease), border-color .3s var(--ease); }
-  .sound:hover { background: #fff; border-color: var(--blue-1); }
-  .sound svg { width: 20px; height: 20px; flex: none; }
-  .sound .bars { display: none; }
-  .sound[aria-pressed="true"] .bars { display: inline; }
-  .sound[aria-pressed="true"] .mute { display: none; }
 
   /* booking card */
   .card { background: #fff; border-radius: 24px; padding: 26px; border: 1px solid rgba(255,255,255,.9); box-shadow: 0 40px 90px -30px rgba(10,70,150,.5), 0 6px 20px -8px rgba(10,70,150,.2); }
@@ -174,7 +166,7 @@
     .env::before { animation: none; }
     .js .rv { opacity: 1; transform: none; transition: none; }
     .wave path { stroke-dashoffset: 0; transition: none; }
-    .btn, .room-row, .sound { transition: none; }
+    .btn, .room-row { transition: none; }
   }
 </style>
 
@@ -191,7 +183,6 @@
 <header class="hero" id="top">
   <div class="hero-bg">
     <img class="photo" id="photo" src="assets/hero.jpg" alt="คลื่นลูกเล็กซัดชายหาดทรายขาว น้ำทะเลสีเขียวมรกตและท้องฟ้าสีน้ำเงิน" fetchpriority="high">
-    <canvas class="photo sea" id="sea" aria-hidden="true"></canvas>
   </div>
   <div class="wash" aria-hidden="true"></div>
   <div class="hero-in">
@@ -200,10 +191,6 @@
       <h1><span style="position:absolute;left:-9999px">ตื่นมา เจอทะเล</span><span aria-hidden="true"><span class="w" style="--th:0">ตื่นมา</span> <span class="w" style="--th:.28"><span class="hl">เจอทะเล</span></span></span></h1>
       <p class="sub">ห้องพัก <b>12 ห้อง</b> ริมหาดทรายขาว เปิดประตูแล้วเดินลงทรายได้เลย จองตรงกับเรา <b>ตอบราคาและห้องว่างภายใน 1 วัน</b></p>
       <div class="hero-links">
-        <button class="sound" id="sound" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="bars" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M17 9l5 6M22 9l-5 6"/></svg>
-          <span id="soundLabel">เปิดเสียงคลื่น</span>
-        </button>
         <a class="more" href="#rooms">ดูห้องพักทั้งหมด ↓</a>
       </div>
     </div>
@@ -305,135 +292,26 @@
   var smooth = function (p, a, b) { var t = clamp((p - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   var reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
-  // ---------- hero: live water ----------
-  var hero = $("#top"), sea = $("#sea"), photo = $("#photo");
-  var cache = {}, t0 = performance.now(), raf = null, visible = true;
-  var gl = null, uT = null, uS = null;
-
+  // ---------- hero: the headline rises once on arrival ----------
+  var hero = $("#top"), cache = {};
   function put(name, v) {
     var r = Math.round(v * 1000) / 1000;
     if (cache[name] === r) return;
     cache[name] = r;
     hero.style.setProperty(name, r);
   }
-  // one shared wave clock: the picture and the sound read the same function
-  var PERIOD = 9;
-  function swell(ms) {
-    var t = ms / 1000, c = Math.floor(t / PERIOD), ph = t / PERIOD - c;
-    var amp = 0.78 + 0.22 * Math.sin(c * 2.3 + 1);
-    return amp * smooth(ph, 0, 0.34) * (1 - smooth(ph, 0.34, 1));   // wave arrives fast, slides back slowly
+  function intro() {
+    if (reduced.matches) { put("--k", 1); put("--ks", 1); return; }            // reduced motion: final state at once
+    var t0 = performance.now();
+    (function step() {
+      var it = performance.now() - t0;
+      put("--k", clamp((it - 300) / 1100, 0, 1));                              // headline words rise
+      put("--ks", clamp((it - 1000) / 900, 0, 1));                             // paragraph and links
+      if (it < 2000 && !document.hidden) requestAnimationFrame(step); else { put("--k", 1); put("--ks", 1); }
+    })();
   }
-
-  var VS = "attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*.5+.5,1.-(p.y*.5+.5));gl_Position=vec4(p,0.,1.);}";
-  var FS = "precision mediump float;varying vec2 uv;uniform sampler2D img;uniform float t;uniform float s;" +
-    "void main(){" +
-    "float yh=.305+.2*uv.x;float ys=.5+.03*uv.x;" +
-    "float water=smoothstep(yh+.012,yh+.03,uv.y)*(1.-smoothstep(ys-.03,ys-.008,uv.y))*(1.-smoothstep(.7,.88,uv.x));" +
-    "float depth=clamp((uv.y-yh)/(ys-yh),0.,1.);" +
-    "float w1=sin(uv.x*38.+uv.y*52.-t*1.1);float w2=sin(uv.x*71.-uv.y*33.+t*.8+w1);" +
-    "vec2 d=vec2(w1*.0016+w2*.0010,w2*.0013)*(.4+depth*1.3);" +
-    "float foam=smoothstep(ys-.12,ys-.045,uv.y);" +
-    "vec2 wash=vec2(sin(uv.x*20.+t*.6)*.003,(s-.5)*.02)*foam;" +
-    "vec3 c=texture2D(img,uv+(d+wash)*water).rgb;" +
-    "c*=1.+.05*w2*water*(.5+depth);" +
-    "vec2 cc=vec2(uv.x*260.,uv.y*120.);vec2 cell=floor(cc);float h=fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453);float dotm=smoothstep(.5,.0,length(fract(cc)-.5));" +
-    "float g=step(.972,h)*dotm*pow(max(0.,sin(t*(1.5+h*2.)+h*40.)),10.)*water*smoothstep(.2,.9,depth);" +
-    "gl_FragColor=vec4(c+vec3(g*.4),1.);}";
-
-  function initGL() {
-    if (gl) return true;
-    try { gl = sea.getContext("webgl", { antialias: false }); } catch (e) { gl = null; }
-    if (!gl || !photo.naturalWidth) { gl = null; return false; }
-    function sh(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; }
-    var vs = sh(gl.VERTEX_SHADER, VS), fs = sh(gl.FRAGMENT_SHADER, FS), pr = gl.createProgram();
-    if (!vs || !fs) { gl = null; return false; }
-    gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
-    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { gl = null; return false; }
-    gl.useProgram(pr);
-    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    var loc = gl.getAttribLocation(pr, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, photo); } catch (e) { gl = null; return false; }
-    sea.width = photo.naturalWidth; sea.height = photo.naturalHeight; gl.viewport(0, 0, sea.width, sea.height);
-    uT = gl.getUniformLocation(pr, "t"); uS = gl.getUniformLocation(pr, "s");
-    return true;
-  }
-  function draw(ms) {
-    gl.uniform1f(uT, ms / 1000); gl.uniform1f(uS, swell(ms));
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  }
-  function frame() {
-    raf = null;
-    if (reduced.matches) { put("--k", 1); put("--ks", 1); return; }          // reduced motion: still, final state
-    var now = performance.now(), it = now - t0;
-    if (gl) { draw(now); if (!sea.classList.contains("on")) sea.classList.add("on"); }
-    put("--k", clamp((it - 300) / 1100, 0, 1));                              // headline words rise on arrival
-    put("--ks", clamp((it - 1000) / 900, 0, 1));                             // paragraph and links
-    if (visible && !document.hidden) raf = requestAnimationFrame(frame);
-  }
-  function kick() { if (raf === null) raf = requestAnimationFrame(frame); }
-  function arm() {
-    if (reduced.matches) { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } sea.classList.remove("on"); put("--k", 1); put("--ks", 1); return; }
-    initGL(); kick();
-  }
-  document.addEventListener("visibilitychange", kick);
-  reduced.addEventListener("change", arm);
-  if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) kick(); }).observe(hero);
-  if (photo.complete && photo.naturalWidth) arm(); else photo.addEventListener("load", arm, { once: true });
-
-  // ---------- wave sound (made in the browser, starts only when asked) ----------
-  var soundBtn = $("#sound"), soundLabel = $("#soundLabel"), ac = null, A = null, soundOn = false, audioTick = null;
-  function buildAudio() {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return false;
-    ac = new Ctx();
-    var master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
-    function noise(brown) {
-      var n = ac.sampleRate * 4, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0), last = 0;
-      for (var i = 0; i < n; i++) { var w = Math.random() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; } else d[i] = w * 0.5; }
-      var src = ac.createBufferSource(); src.buffer = b; src.loop = true; src.start(); return src;
-    }
-    var lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 300;
-    var gLow = ac.createGain(); gLow.gain.value = 0.1;
-    noise(true).connect(lp); lp.connect(gLow); gLow.connect(master);               // the body of the wave
-    var bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3200; bp.Q.value = 0.6;
-    var gHi = ac.createGain(); gHi.gain.value = 0;
-    noise(false).connect(bp); bp.connect(gHi); gHi.connect(master);                // the foam hiss
-    A = { master: master, lp: lp, gLow: gLow, gHi: gHi };
-    return true;
-  }
-  function updateAudio() {
-    var s = swell(performance.now()), n = ac.currentTime;
-    A.lp.frequency.setTargetAtTime(220 + 2300 * s, n, 0.12);
-    A.gLow.gain.setTargetAtTime(0.10 + 0.75 * s, n, 0.12);
-    A.gHi.gain.setTargetAtTime(0.02 + 0.22 * s * s, n, 0.12);
-  }
-  function setSoundUI() {
-    soundBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
-    soundLabel.textContent = soundOn ? "ปิดเสียงคลื่น" : "เปิดเสียงคลื่น";
-  }
-  soundBtn.addEventListener("click", function () {
-    try {
-      if (!soundOn) {
-        if (!ac && !buildAudio()) { soundLabel.textContent = "เบราว์เซอร์นี้เล่นเสียงไม่ได้"; return; }
-        ac.resume(); soundOn = true; updateAudio();
-        clearInterval(audioTick); audioTick = setInterval(updateAudio, 90);
-        A.master.gain.setTargetAtTime(0.55, ac.currentTime, 0.6);
-      } else {
-        soundOn = false;
-        A.master.gain.setTargetAtTime(0, ac.currentTime, 0.3);
-        setTimeout(function () { if (!soundOn) { clearInterval(audioTick); ac.suspend(); } }, 1400);
-      }
-      setSoundUI();
-    } catch (e) { soundOn = false; setSoundUI(); }
-  });
-  document.addEventListener("visibilitychange", function () {
-    if (!ac || !soundOn) return;
-    if (document.hidden) ac.suspend(); else ac.resume();
-  });
+  reduced.addEventListener("change", intro);
+  intro();
 
   // ---------- entrances ----------
   if ("IntersectionObserver" in window) {
