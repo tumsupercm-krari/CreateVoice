@@ -1,24 +1,25 @@
 <title>Rim Le Resort</title>
 <meta name="description" content="ริมเล รีสอร์ต ห้องพัก 12 ห้องริมหาดทรายขาว (เว็บตัวอย่าง)">
-<meta name="theme-color" content="#fbfaf8">
+<meta name="theme-color" content="#f4f7fc">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Mitr:wght@400;500&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  /* Concept: a bright pearl-white page with a soft rose and lilac sheen. The hero is the still beach photo, washed light on the left so dark type reads, with a white booking card on the right. Below it, a settled one-page resort site in clear blues. */
+  /* Concept: a deep navy page: navy washes over the beach hero, light content sections, navy bands for the interactive moment and the call to action. The hero is the still beach photo, washed light on the left so dark type reads, with a white booking card on the right. Below it, a settled one-page resort site in clear blues. */
   :root {
-    --canvas: #fbfaf8;
-    --tint: #f1edf1;
+    --canvas: #f4f7fc;
+    --tint: #e7eef8;
     --surface: #ffffff;
-    --line: #e5dfe4;
-    --ink: #2a2530;
-    --text: #2a2530;
-    --muted: #6f6877;
-    --sea: #6e4f7e;                 /* label colour, 6:1 on pearl */
-    --blue-1: #a98bb8;
-    --blue-2: #7a4e86;
-    --grad: linear-gradient(100deg, #f8dccf 0%, #ead9f2 50%, #d3e6f4 100%);
-    --grad-text: linear-gradient(100deg, #a4679c 0%, #5f72b0 100%);
+    --line: #d4deee;
+    --ink: #0b1a3a;
+    --text: #0b1a3a;
+    --muted: #51607f;
+    --sea: #1d4ed8;                 /* label colour, 6:1 on white */
+    --navy: #0a1f4d;
+    --blue-1: #3b82f6;
+    --blue-2: #1e3a8a;
+    --grad: linear-gradient(100deg, #2457d6 0%, #0a1f4d 100%);
+    --grad-text: linear-gradient(100deg, #2563eb 0%, #0a1f4d 100%);
         --font-display: "Mitr", "Sarabun", system-ui, sans-serif;
     --font-body: "Sarabun", system-ui, "Noto Sans Thai", sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, "Sarabun", monospace;
@@ -36,42 +37,42 @@
   /* one environment: soft colour drifting behind the sections */
   .env { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; background: var(--canvas); }
   .env::before { content: ""; position: absolute; inset: -20%; background:
-    radial-gradient(38% 30% at 15% 25%, rgba(246,214,226,.55), transparent 70%),
-    radial-gradient(34% 28% at 85% 65%, rgba(206,225,245,.45), transparent 70%),
-    radial-gradient(30% 26% at 55% 95%, rgba(255,236,200,.40), transparent 70%);
+    radial-gradient(38% 30% at 15% 25%, rgba(59,130,246,.16), transparent 70%),
+    radial-gradient(34% 28% at 85% 65%, rgba(14,165,233,.12), transparent 70%),
+    radial-gradient(30% 26% at 55% 95%, rgba(10,31,77,.07), transparent 70%);
     animation: drift 70s linear infinite alternate; will-change: transform; }
   @keyframes drift { from { transform: translate3d(-3%, -2%, 0); } to { transform: translate3d(3%, 2%, 0); } }
 
   /* nav */
-  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: rgba(251,250,248,.86); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(229,223,228,.9); }
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: rgba(244,247,252,.88); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(212,222,238,.9); }
   .brand { font-family: var(--font-display); font-size: 1.25rem; text-decoration: none; line-height: 1.2; }
   .brand small { display: block; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; color: var(--muted); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 22px; border-radius: 999px; background: var(--grad); color: var(--ink); font: inherit; font-weight: 600; text-decoration: none; border: 1px solid rgba(122,78,134,.22); cursor: pointer; box-shadow: 0 10px 26px -12px rgba(122,78,134,.45); transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 14px 30px -12px rgba(122,78,134,.55); }
-  .btn.dark { background: var(--ink); color: #fff; box-shadow: 0 10px 30px -12px rgba(40,30,50,.5); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 22px; border-radius: 999px; background: var(--grad); color: #fff; font: inherit; font-weight: 600; text-decoration: none; border: 1px solid rgba(255,255,255,.16); cursor: pointer; box-shadow: 0 10px 26px -12px rgba(10,31,77,.55); transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 14px 30px -12px rgba(10,31,77,.65); }
+  .btn.light { background: #fff; color: var(--navy); border-color: transparent; box-shadow: 0 12px 30px -12px rgba(0,0,0,.55); }
 
   /* hero */
   .hero { position: relative; isolation: isolate; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 104px 16px 64px; overflow: hidden; --k: 1; --ks: 1; }
   .js .hero { --k: 0; --ks: 0; }
-  .hero-bg { position: absolute; inset: 0; z-index: -2; background: #e6e0ea; }
+  .hero-bg { position: absolute; inset: 0; z-index: -2; background: #c9d8ee; }
   .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 40% 58%; }
   .wash { position: absolute; inset: 0; z-index: -1; pointer-events: none; background:
-    radial-gradient(85% 100% at 0% 38%, rgba(252,250,248,.92) 0%, rgba(252,250,248,.7) 38%, rgba(252,250,248,.14) 70%, rgba(252,250,248,0) 100%),
-    linear-gradient(rgba(252,250,248,.3), rgba(252,250,248,0) 24%); }
+    linear-gradient(90deg, rgba(8,24,64,.93) 0%, rgba(8,24,64,.8) 30%, rgba(8,24,64,.32) 58%, rgba(8,24,64,0) 80%),
+    linear-gradient(rgba(8,24,64,.4), rgba(8,24,64,0) 22%); }
   .hero-in { width: 100%; max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 420px); gap: clamp(28px, 5vw, 72px); align-items: center; }
   .copy { padding-bottom: 12vh; }
-  .kick { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .16em; text-transform: uppercase; color: var(--sea); margin: 0 0 12px; opacity: clamp(0, calc(var(--k) * 2), 1); }
-  h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.7rem, 6.6vw, 5.2rem); line-height: 1.14; margin: 0; padding-bottom: .1em; color: var(--ink); }
+  .kick { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .16em; text-transform: uppercase; color: #9fdcff; margin: 0 0 12px; opacity: clamp(0, calc(var(--k) * 2), 1); }
+  h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.7rem, 6.6vw, 5.2rem); line-height: 1.14; margin: 0; padding-bottom: .1em; color: #fff; }
   h1 .w { display: inline-block; --kc: clamp(0, calc((var(--k) - var(--th)) * 3), 1); opacity: var(--kc); transform: translate3d(0, calc((1 - var(--kc)) * 26px), 0); }
-  h1 .hl { background: linear-gradient(100deg, #a4679c 0%, #5f72b0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
-  .sub { font-size: clamp(1.02rem, 1.9vw, 1.2rem); max-width: 34rem; margin: 16px 0 22px; color: #4b4452; opacity: var(--ks); transform: translate3d(0, calc((1 - var(--ks)) * 14px), 0); }
-  .sub b { color: var(--ink); font-weight: 600; }
+  h1 .hl { background: linear-gradient(100deg, #a8e4ff 0%, #5eb0ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+  .sub { font-size: clamp(1.02rem, 1.9vw, 1.2rem); max-width: 34rem; margin: 16px 0 22px; color: rgba(255,255,255,.9); opacity: var(--ks); transform: translate3d(0, calc((1 - var(--ks)) * 14px), 0); }
+  .sub b { color: #fff; font-weight: 600; }
   .hero-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; opacity: var(--ks); }
-  .more { color: var(--muted); text-decoration: none; font-size: .95rem; }
-  .more:hover { color: var(--blue-2); }
+  .more { color: rgba(255,255,255,.85); text-decoration: none; font-size: .95rem; }
+  .more:hover { color: #fff; text-decoration: underline; }
 
   /* booking card */
-  .card { background: #fff; border-radius: 24px; padding: 26px; border: 1px solid rgba(255,255,255,.9); box-shadow: 0 40px 90px -30px rgba(110,80,130,.28), 0 6px 20px -8px rgba(110,80,130,.14); }
+  .card { background: #fff; border-radius: 24px; padding: 26px; border: 1px solid rgba(255,255,255,.9); box-shadow: 0 40px 90px -30px rgba(10,31,77,.28), 0 6px 20px -8px rgba(10,31,77,.14); }
   .badge { display: inline-flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); margin: 0 0 10px; }
   .badge i { width: 8px; height: 8px; border-radius: 50%; background: #1fbf75; box-shadow: 0 0 0 4px rgba(31,191,117,.18); }
   .card h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.55rem; line-height: 1.3; margin: 0 0 4px; max-width: none; }
@@ -79,9 +80,9 @@
   form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   form .full { grid-column: 1 / -1; }
   label { display: grid; gap: 6px; font-size: .86rem; font-weight: 600; color: var(--ink); min-width: 0; }
-  input, select { font: inherit; font-weight: 400; color: var(--ink); background: #fff; border: 1px solid #d9d1dc; border-radius: 12px; padding: 11px 13px; min-height: 48px; width: 100%; color-scheme: light; }
-  input::placeholder { color: #9a90a2; }
-  input:focus, select:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(122,78,134,.25); }
+  input, select { font: inherit; font-weight: 400; color: var(--ink); background: #fff; border: 1px solid #c3d0e6; border-radius: 12px; padding: 11px 13px; min-height: 48px; width: 100%; color-scheme: light; }
+  input::placeholder { color: #8a97b2; }
+  input:focus, select:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(29,78,216,.22); }
   form .btn { grid-column: 1 / -1; width: 100%; min-height: 52px; font-size: 1.02rem; }
   .fine { margin: 14px 0 0; text-align: center; font-size: .78rem; color: var(--muted); line-height: 1.5; }
   .ok { display: none; margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: #e9f9f1; border: 1px solid #9fdcbd; color: #0c4a30; font-size: .94rem; }
@@ -93,7 +94,7 @@
     .copy { padding-bottom: 0; }
     .hero-bg, .wash { bottom: auto; height: 100vh; height: 100svh; }
     .hero-bg { -webkit-mask-image: linear-gradient(#000 62%, transparent 100%); mask-image: linear-gradient(#000 62%, transparent 100%); }
-    .wash { background: linear-gradient(rgba(252,250,248,.9) 0%, rgba(252,250,248,.66) 34%, rgba(252,250,248,.12) 62%, rgba(252,250,248,0) 100%); }
+    .wash { background: linear-gradient(rgba(8,24,64,.93) 0%, rgba(8,24,64,.8) 36%, rgba(8,24,64,.25) 64%, rgba(8,24,64,0) 100%); }
     .card { margin-top: 14vh; }
   }
   @media (max-width: 480px) { form { grid-template-columns: 1fr; } .card { padding: 20px; border-radius: 20px; } }
@@ -106,19 +107,45 @@
   .lede { color: var(--muted); max-width: 46ch; margin: 0; font-size: 1.08rem; }
 
   .wave { display: block; width: 100%; height: 40px; margin-bottom: 36px; }
-  .wave path { fill: none; stroke: #cdb4de; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.2s var(--ease); }
+  .wave path { fill: none; stroke: #3b82f6; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.2s var(--ease); }
   .wave.in path { stroke-dashoffset: 0; }
 
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 48px; }
-  .fact { padding: 22px 22px 20px; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 36px -26px rgba(110,80,130,.28); }
+  .fact { padding: 22px 22px 20px; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 36px -26px rgba(10,31,77,.28); }
   .fact b { display: block; font-family: var(--font-display); font-weight: 500; font-size: clamp(1.8rem, 4.2vw, 2.5rem); line-height: 1.2; background: var(--grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
   .fact span { color: var(--muted); }
 
+
+  .navy { background: linear-gradient(165deg, #0a1f4d 0%, #071536 100%); color: #fff; }
+  .navy .label { color: #9fdcff; }
+  .navy .lede, .navy .time p { color: rgba(255,255,255,.78); }
+  .navy .time output { color: #9fdcff; }
+  .navy input[type=range] { accent-color: #7cc4ff; }
+  .navy .frame { box-shadow: 0 30px 70px -30px rgba(0,0,0,.7); background: #0e2a63; }
+
+  .gallery { display: grid; grid-template-columns: 1.2fr 1fr; grid-template-rows: 1fr 1fr; gap: 18px; margin-top: 44px; min-height: 560px; }
+  .shot { position: relative; margin: 0; border-radius: 22px; overflow: hidden; background: #c9d8ee; box-shadow: 0 26px 54px -32px rgba(10,31,77,.6); isolation: isolate; }
+  .shot.tall { grid-row: 1 / span 2; }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease); }
+  .shot:hover img { transform: scale(1.04); }
+  .shot::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(rgba(8,24,64,0) 38%, rgba(8,24,64,.86) 100%); }
+  .shot figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 22px 24px 22px; color: #fff; text-shadow: 0 1px 12px rgba(5,14,40,.6); }
+  .shot.top::after { background: linear-gradient(rgba(8,24,64,.84) 0%, rgba(8,24,64,.5) 38%, rgba(8,24,64,0) 66%); }
+  .shot.top figcaption { top: 0; bottom: auto; }
+  .shot .tag { display: block; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: #9fdcff; margin-bottom: 6px; }
+  .shot h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.15rem, 2.4vw, 1.6rem); line-height: 1.3; margin: 0 0 4px; }
+  .shot p { margin: 0; font-size: .95rem; line-height: 1.55; color: rgba(255,255,255,.9); max-width: 36ch; }
+  .note { margin: 14px 2px 0; font-size: .82rem; color: var(--muted); }
+  @media (max-width: 760px) {
+    .gallery { grid-template-columns: 1fr; grid-template-rows: none; min-height: 0; gap: 14px; }
+    .shot, .shot.tall { grid-row: auto; aspect-ratio: 4 / 3.2; }
+  }
+
   .band { background: linear-gradient(var(--tint), var(--canvas)); }
-  .rooms { margin-top: 40px; background: #fff; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 44px -30px rgba(110,80,130,.28); }
+  .rooms { margin-top: 40px; background: #fff; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 44px -30px rgba(10,31,77,.28); }
   .room-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr auto; gap: 14px 24px; align-items: baseline; padding: 22px 26px; border-bottom: 1px solid var(--line); transition: background .35s var(--ease); }
   .room-row:last-child { border-bottom: 0; }
-  .room-row:hover { background: #f6f1f6; }
+  .room-row:hover { background: #eef4fd; }
   .room-row h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.3rem; margin: 0; }
   .room-row .m { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); letter-spacing: .04em; }
   .room-row .p { font-family: var(--font-display); font-size: 1.3rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--blue-2); }
@@ -126,7 +153,7 @@
   @media (max-width: 640px) { .room-row { grid-template-columns: 1fr auto; padding: 18px; } .room-row .m { grid-column: 1 / -1; } }
 
   .sun { display: grid; grid-template-columns: 1fr; gap: 22px; margin-top: 36px; }
-  .frame { position: relative; border-radius: 20px; overflow: hidden; aspect-ratio: 16 / 9; background: #e6e0ea; box-shadow: 0 30px 60px -34px rgba(110,80,130,.34); }
+  .frame { position: relative; border-radius: 20px; overflow: hidden; aspect-ratio: 16 / 9; background: #c9d8ee; box-shadow: 0 30px 60px -34px rgba(10,31,77,.34); }
   .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 40% 58%; }
   .tint { position: absolute; inset: 0; pointer-events: none; background: transparent; }
   .time { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
@@ -142,11 +169,12 @@
   details[open] summary::after { transform: rotate(45deg); }
   details p { margin: 0; padding: 0 4px 22px; color: var(--muted); max-width: 56ch; }
 
-  .cta { background: linear-gradient(115deg, #f9e3dc 0%, #ece1f5 50%, #d9e9f6 100%); color: var(--ink); text-align: center; }
-  .cta h2 { color: var(--ink); margin-inline: auto; }
-  .cta p { margin: 0 auto 26px; max-width: 44ch; color: rgba(42,37,48,.85); }
+  .cta { background: linear-gradient(160deg, #1b3f9e 0%, #0a1f4d 70%); color: #fff; text-align: center; }
+  .cta h2 { color: #fff; margin-inline: auto; }
+  .cta p { margin: 0 auto 26px; max-width: 44ch; color: rgba(255,255,255,.86); }
 
-  footer { padding: 40px 16px 56px; background: var(--tint); color: var(--muted); font-size: .9rem; }
+  footer { padding: 40px 16px 56px; background: #071536; color: rgba(255,255,255,.72); font-size: .9rem; }
+  footer a { color: #fff; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 40px; justify-content: space-between; }
   footer p { margin: 0; max-width: 62ch; }
 
@@ -155,6 +183,7 @@
   .js .rv.in { opacity: 1; transform: none; }
   .js .facts .fact.rv:nth-child(2) { transition-delay: .1s; } .js .facts .fact.rv:nth-child(3) { transition-delay: .2s; }
 
+  @media (prefers-reduced-motion: reduce) { .shot img { transition: none; } .shot:hover img { transform: none; } }
   @media (pointer: coarse) { summary { min-height: 48px; } }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -220,6 +249,29 @@
     </div>
   </section>
 
+  <section class="s" id="life">
+    <div class="wrap">
+      <p class="label rv">ชีวิตริมหาด</p>
+      <h2 class="t rv">ตื่นมาแล้วทำอะไรได้บ้าง</h2>
+      <p class="lede rv">ไม่ต้องมีโปรแกรมแน่น แค่เดินออกจากห้องไปไม่กี่ก้าว ก็เจอสามอย่างนี้แล้ว</p>
+      <div class="gallery rv">
+        <figure class="shot tall">
+          <img src="assets/hut.webp" alt="ศาลาไม้สีขาวหลังคามุงจากริมหาดทรายขาว มีน้ำทะเลสีเทอร์ควอยซ์และเมฆก้อนใหญ่ด้านหลัง" loading="lazy">
+          <figcaption><span class="tag">ศาลาริมหาด</span><h3>ขึ้นไปนั่งดูทะเลทั้งบ่าย</h3><p>ศาลาไม้หลังคามุงจาก มองเห็นคลื่นและเกาะไกล ๆ ลมผ่านตลอด ไม่ต้องจองล่วงหน้า</p></figcaption>
+        </figure>
+        <figure class="shot top">
+          <img src="assets/starfish.webp" alt="ดาวทะเลสีส้มสามตัวนอนอยู่ใต้น้ำตื้นใสบนพื้นทราย มองเห็นเกาะและท้องฟ้าสีฟ้าไกล ๆ" loading="lazy">
+          <figcaption><span class="tag">น้ำตื้นใส</span><h3>ส่องดาวทะเลหน้าหาด</h3><p>น้ำใสจนเห็นพื้นทราย เดินลงไปดูได้ตั้งแต่เช้า</p></figcaption>
+        </figure>
+        <figure class="shot top">
+          <img src="assets/shells.webp" alt="เปลือกหอยสังข์และปะการังชิ้นเล็กกองอยู่บนหาดทราย มีทะเลและท้องฟ้าสีฟ้าเป็นฉากหลัง" loading="lazy">
+          <figcaption><span class="tag">ยามเช้า</span><h3>เก็บเปลือกหอยริมน้ำ</h3><p>คลื่นพาของเล็ก ๆ มาวางไว้ให้ทุกเช้า</p></figcaption>
+        </figure>
+      </div>
+      <p class="note rv">ภาพและคำบรรยายในส่วนนี้เป็นตัวอย่างประกอบ ยังไม่ใช่ภาพและกิจกรรมของที่พักจริง</p>
+    </div>
+  </section>
+
   <section class="s band" id="rooms">
     <div class="wrap">
       <p class="label rv">ห้องพัก</p>
@@ -232,7 +284,7 @@
     </div>
   </section>
 
-  <section class="s" id="hours">
+  <section class="s navy" id="hours">
     <div class="wrap">
       <p class="label rv">ลองดู</p>
       <h2 class="t rv">ทะเลตอนกี่โมงของคุณ</h2>
@@ -264,14 +316,14 @@
     <div class="wrap">
       <h2 class="t rv">บอกวันที่ที่อยากตื่นมาเจอทะเล</h2>
       <p class="rv">ส่งวันที่และจำนวนคน เราตอบราคากับห้องว่างให้ภายใน 1 วัน</p>
-      <a class="btn dark rv" href="#book">ขอราคาห้องพัก <span aria-hidden="true">→</span></a>
+      <a class="btn light rv" href="#book">ขอราคาห้องพัก <span aria-hidden="true">→</span></a>
     </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <p>ริมเล รีสอร์ต เป็นชื่อสมมติเพื่อสาธิตเว็บ ราคา ที่ตั้ง และรายละเอียดทั้งหมดเป็นตัวอย่าง ภาพชายหาดเป็นภาพของเจ้าของเว็บ</p>
+    <p>ริมเล รีสอร์ต เป็นชื่อสมมติเพื่อสาธิตเว็บ ราคา ที่ตั้ง และรายละเอียดทั้งหมดเป็นตัวอย่าง ภาพชายหาดหน้าแรกเป็นภาพของเจ้าของเว็บ ภาพในส่วนชีวิตริมหาดเป็นภาพประกอบตัวอย่าง</p>
     <p><a href="#top">กลับขึ้นด้านบน</a></p>
   </div>
 </footer>
