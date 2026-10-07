@@ -5,26 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rim Le Resort</title>
 <meta name="description" content="ริมเล รีสอร์ต ห้องพัก 12 ห้องริมหาดทรายขาว (เว็บตัวอย่าง)">
-<meta name="theme-color" content="#f4f7fc">
+<meta name="theme-color" content="#f2f8ff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Mitr:wght@400;500&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
   /* Concept: a deep navy page: navy washes over the beach hero, light content sections, navy bands for the interactive moment and the call to action. The hero is the still beach photo, washed light on the left so dark type reads, with a white booking card on the right. Below it, a settled one-page resort site in clear blues. */
   :root {
-    --canvas: #f4f7fc;
-    --tint: #e7eef8;
+    --canvas: #f2f8ff;
+    --tint: #e3f0ff;
     --surface: #ffffff;
-    --line: #d4deee;
-    --ink: #0b1a3a;
-    --text: #0b1a3a;
-    --muted: #51607f;
-    --sea: #1d4ed8;                 /* label colour, 6:1 on white */
-    --navy: #0a1f4d;
-    --blue-1: #3b82f6;
-    --blue-2: #1e3a8a;
-    --grad: linear-gradient(100deg, #2457d6 0%, #0a1f4d 100%);
-    --grad-text: linear-gradient(100deg, #2563eb 0%, #0a1f4d 100%);
+    --line: #cfe3fa;
+    --ink: #0c2a54;
+    --text: #0c2a54;
+    --muted: #4a6285;
+    --sea: #0b64d8;                 /* label colour, 6:1 on white */
+    --navy: #1457c8;
+    --blue-1: #38a0ff;
+    --blue-2: #1457c8;
+    --grad: linear-gradient(100deg, #1e7bf2 0%, #1457c8 100%);
+    --grad-text: linear-gradient(100deg, #0ea5ff 0%, #1457c8 100%);
         --font-display: "Mitr", "Sarabun", system-ui, sans-serif;
     --font-body: "Sarabun", system-ui, "Noto Sans Thai", sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, "Sarabun", monospace;
@@ -62,8 +62,8 @@
   .hero-bg { position: absolute; inset: 0; z-index: -2; background: #c9d8ee; }
   .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 40% 58%; }
   .wash { position: absolute; inset: 0; z-index: -1; pointer-events: none; background:
-    linear-gradient(90deg, rgba(8,24,64,.93) 0%, rgba(8,24,64,.8) 30%, rgba(8,24,64,.32) 58%, rgba(8,24,64,0) 80%),
-    linear-gradient(rgba(8,24,64,.4), rgba(8,24,64,0) 22%); }
+    linear-gradient(90deg, rgba(10,72,170,.93) 0%, rgba(10,72,170,.8) 30%, rgba(10,72,170,.32) 58%, rgba(10,72,170,0) 80%),
+    linear-gradient(rgba(10,72,170,.4), rgba(10,72,170,0) 22%); }
   .hero-in { width: 100%; max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 420px); gap: clamp(28px, 5vw, 72px); align-items: center; }
   .copy { padding-bottom: 12vh; }
   .kick { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .16em; text-transform: uppercase; color: #9fdcff; margin: 0 0 12px; opacity: clamp(0, calc(var(--k) * 2), 1); }
@@ -99,7 +99,7 @@
     .copy { padding-bottom: 0; }
     .hero-bg, .wash { bottom: auto; height: 100vh; height: 100svh; }
     .hero-bg { -webkit-mask-image: linear-gradient(#000 62%, transparent 100%); mask-image: linear-gradient(#000 62%, transparent 100%); }
-    .wash { background: linear-gradient(rgba(8,24,64,.93) 0%, rgba(8,24,64,.8) 36%, rgba(8,24,64,.25) 64%, rgba(8,24,64,0) 100%); }
+    .wash { background: linear-gradient(rgba(10,72,170,.93) 0%, rgba(10,72,170,.8) 36%, rgba(10,72,170,.25) 64%, rgba(10,72,170,0) 100%); }
     .card { margin-top: 14vh; }
   }
   @media (max-width: 480px) { form { grid-template-columns: 1fr; } .card { padding: 20px; border-radius: 20px; } }
@@ -112,7 +112,7 @@
   .lede { color: var(--muted); max-width: 46ch; margin: 0; font-size: 1.08rem; }
 
   .wave { display: block; width: 100%; height: 40px; margin-bottom: 36px; }
-  .wave path { fill: none; stroke: #3b82f6; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.2s var(--ease); }
+  .wave path { fill: none; stroke: #38a0ff; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.2s var(--ease); }
   .wave.in path { stroke-dashoffset: 0; }
 
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 48px; }
@@ -121,7 +121,7 @@
   .fact span { color: var(--muted); }
 
 
-  .navy { background: linear-gradient(165deg, #0a1f4d 0%, #071536 100%); color: #fff; }
+  .navy { background: linear-gradient(165deg, #1a6ae6 0%, #1252bd 100%); color: #fff; }
   .navy .label { color: #9fdcff; }
   .navy .lede, .navy .time p { color: rgba(255,255,255,.78); }
   .navy .time output { color: #9fdcff; }
@@ -133,9 +133,9 @@
   .shot.tall { grid-row: 1 / span 2; }
   .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease); }
   .shot:hover img { transform: scale(1.04); }
-  .shot::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(rgba(8,24,64,0) 38%, rgba(8,24,64,.86) 100%); }
+  .shot::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(rgba(10,72,170,0) 38%, rgba(10,72,170,.86) 100%); }
   .shot figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 22px 24px 22px; color: #fff; text-shadow: 0 1px 12px rgba(5,14,40,.6); }
-  .shot.top::after { background: linear-gradient(rgba(8,24,64,.84) 0%, rgba(8,24,64,.5) 38%, rgba(8,24,64,0) 66%); }
+  .shot.top::after { background: linear-gradient(rgba(10,72,170,.84) 0%, rgba(10,72,170,.5) 38%, rgba(10,72,170,0) 66%); }
   .shot.top figcaption { top: 0; bottom: auto; }
   .shot .tag { display: block; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: #9fdcff; margin-bottom: 6px; }
   .shot h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.15rem, 2.4vw, 1.6rem); line-height: 1.3; margin: 0 0 4px; }
@@ -174,11 +174,11 @@
   details[open] summary::after { transform: rotate(45deg); }
   details p { margin: 0; padding: 0 4px 22px; color: var(--muted); max-width: 56ch; }
 
-  .cta { background: linear-gradient(160deg, #1b3f9e 0%, #0a1f4d 70%); color: #fff; text-align: center; }
+  .cta { background: linear-gradient(160deg, #2a8aff 0%, #1457c8 70%); color: #fff; text-align: center; }
   .cta h2 { color: #fff; margin-inline: auto; }
   .cta p { margin: 0 auto 26px; max-width: 44ch; color: rgba(255,255,255,.86); }
 
-  footer { padding: 40px 16px 56px; background: #071536; color: rgba(255,255,255,.72); font-size: .9rem; }
+  footer { padding: 40px 16px 56px; background: #0e3f94; color: rgba(255,255,255,.72); font-size: .9rem; }
   footer a { color: #fff; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 40px; justify-content: space-between; }
   footer p { margin: 0; max-width: 62ch; }
