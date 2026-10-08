@@ -10,6 +10,8 @@ const PORT = Number(process.env.PORT) || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'taskboard.db');
 const SETUP_KEY = process.env.SETUP_KEY || '';          // optional: required to create the first manager
 const SESSION_DAYS = 7;
+const TZ_OFFSET_MIN = Number(process.env.TZ_OFFSET_MIN ?? 420);   // Asia/Bangkok = UTC+7; used to cut days for hour reports
+const BLOCK_GAP_MIN = 5;                                          // active minutes closer than this form one work block
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATUSES = ['todo', 'doing', 'review', 'done'];
 
@@ -70,7 +72,13 @@ CREATE TABLE IF NOT EXISTS task_history (
 );
 CREATE INDEX IF NOT EXISTS idx_members_user ON task_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_history_task ON task_history(task_id);
+CREATE TABLE IF NOT EXISTS activity (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  minute INTEGER NOT NULL,
+  PRIMARY KEY (user_id, minute)
+) WITHOUT ROWID;
 `);
+if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'tracking_ack_at')) db.exec('ALTER TABLE users ADD COLUMN tracking_ack_at TEXT');
 
 // ---------- helpers ----------
 const now = () => new Date().toISOString();
@@ -131,10 +139,10 @@ function createSession(userId) {
 function getUser(req) {
   const token = parseCookies(req).sid;
   if (!token) return null;
-  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role, u.active, s.expires_at FROM sessions s
+  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role, u.active, u.tracking_ack_at, s.expires_at FROM sessions s
     JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`).get(sha(token));
   if (!row || !row.active || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, name: row.name, role: row.role };
+  return { id: row.id, username: row.username, name: row.name, role: row.role, ack: !!row.tracking_ack_at };
 }
 
 // simple login throttle: 8 failures per username per 10 minutes
@@ -175,7 +183,7 @@ function cleanDeadline(v) {
 const cleanRole = (v) => { if (v !== 'manager' && v !== 'staff') throw bad('ตำแหน่งไม่ถูกต้อง'); return v; };
 const cleanStatus = (v) => { if (!STATUSES.includes(v)) throw bad('สถานะงานไม่ถูกต้อง'); return v; };
 
-const publicUser = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, active: !!u.active, created_at: u.created_at });
+const publicUser = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, active: !!u.active, created_at: u.created_at, ack: !!u.tracking_ack_at });
 const requireManager = (user) => { if (user.role !== 'manager') throw new HttpError(403, 'เฉพาะผู้จัดการเท่านั้น'); };
 const activeManagerCount = () => db.prepare("SELECT COUNT(*) c FROM users WHERE role='manager' AND active=1").get().c;
 
@@ -419,6 +427,60 @@ route('DELETE', '/api/tasks/:id', { auth: true }, ({ user, params }) => {
   const r = db.prepare('DELETE FROM tasks WHERE id = ?').run(Number(params.id));
   if (!r.changes) throw new HttpError(404, 'ไม่พบงานนี้');
   return { ok: true };
+});
+
+
+// ---------- work-hours tracking ----------
+// The browser sends a heartbeat every 30s while the app is visible AND the user touched mouse/keyboard/screen in the last 2 minutes.
+// Each heartbeat marks the current minute as active (one row per user per minute), so hours = active minutes / 60.
+const localDay = (minute) => Math.floor((minute + TZ_OFFSET_MIN) / 1440);           // days since 1970-01-01, local time
+const dayStartMinute = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return Date.UTC(y, m - 1, d) / 60000 - TZ_OFFSET_MIN; };
+const ymdAddDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+const minuteIso = (min) => new Date(min * 60000).toISOString();
+
+route('POST', '/api/tracking/ack', { auth: true }, ({ user }) => {
+  db.prepare('UPDATE users SET tracking_ack_at = COALESCE(tracking_ack_at, ?) WHERE id = ?').run(now(), user.id);
+  return { ok: true };
+});
+
+route('POST', '/api/activity', { auth: true }, ({ user }) => {
+  if (!user.ack) throw new HttpError(409, 'ต้องกดรับทราบเงื่อนไขการนับเวลาก่อน');
+  const minute = Math.floor(Date.now() / 60000);
+  db.prepare('INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?, ?)').run(user.id, minute);
+  const start = localDay(minute) * 1440 - TZ_OFFSET_MIN;
+  const today = db.prepare('SELECT COUNT(*) c FROM activity WHERE user_id = ? AND minute >= ? AND minute < ?').get(user.id, start, start + 1440).c;
+  return { today_minutes: today };
+});
+
+route('GET', '/api/hours', { auth: true }, ({ user, url }) => {
+  const from = cleanDeadline(url.searchParams.get('from'));
+  if (!from) throw bad('กรุณาระบุวันที่เริ่มต้น');
+  const days = Number(url.searchParams.get('days') || 7);
+  if (!Number.isInteger(days) || days < 1 || days > 31) throw bad('จำนวนวันต้องอยู่ระหว่าง 1-31');
+  const lo = dayStartMinute(from), hi = lo + days * 1440;
+  const dates = Array.from({ length: days }, (_, i) => ymdAddDays(from, i));
+  const who = user.role === 'manager'
+    ? db.prepare('SELECT id, name, role, tracking_ack_at FROM users WHERE active = 1 ORDER BY role, name').all()
+    : db.prepare('SELECT id, name, role, tracking_ack_at FROM users WHERE id = ?').all(user.id);
+  const rows = db.prepare(`SELECT user_id, minute FROM activity WHERE minute >= ? AND minute < ?
+    ${user.role === 'manager' ? '' : 'AND user_id = ' + Number(user.id)} ORDER BY user_id, minute`).all(lo, hi);
+  const byUser = new Map();
+  for (const r of rows) { if (!byUser.has(r.user_id)) byUser.set(r.user_id, []); byUser.get(r.user_id).push(r.minute); }
+  const users = who.map((u) => {
+    const mins = byUser.get(u.id) || [];
+    const perDay = dates.map((date) => ({ date, minutes: 0, first: null, last: null, blocks: [] }));
+    let blk = null;
+    for (const m of mins) {
+      const d = perDay[Math.floor((m - lo) / 1440)];
+      d.minutes++;
+      if (!d.first) d.first = minuteIso(m);
+      d.last = minuteIso(m + 1);
+      if (blk && blk.day === d && m - blk.endMin <= BLOCK_GAP_MIN) { blk.endMin = m + 1; blk.minutes++; blk.ref.end = minuteIso(m + 1); blk.ref.minutes++; }
+      else { const ref = { start: minuteIso(m), end: minuteIso(m + 1), minutes: 1 }; d.blocks.push(ref); blk = { day: d, endMin: m + 1, minutes: 1, ref }; }
+    }
+    return { id: u.id, name: u.name, role: u.role, ack: !!u.tracking_ack_at, total_minutes: mins.length, days: perDay };
+  });
+  return { from, days, dates, tz_offset_min: TZ_OFFSET_MIN, users };
 });
 
 // ---------- static + server ----------

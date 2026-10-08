@@ -160,3 +160,18 @@ code.inv { background: #f1f5fb; border: 1px solid var(--line); border-radius: 6p
   .col { scroll-snap-align: start; }
 }
 @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+
+/* work hours */
+.chip-hours { background: #1a3a6e; color: #dbe6fb; border-radius: 999px; padding: 3px 11px; font-size: .82rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.hours { min-width: 760px; }
+table.hours td.hc, table.hours th.hc { text-align: center; font-variant-numeric: tabular-nums; min-width: 82px; }
+table.hours td.tot { background: #f7f9fd; }
+table.hours tr.sel td { background: var(--brand-soft); }
+.who2 { display: flex; align-items: center; gap: 10px; }
+.who2 .av { margin: 0; flex: none; }
+.hbarwrap { height: 5px; background: #e8eef8; border-radius: 999px; margin: 4px 8px 0; overflow: hidden; }
+.hbar { display: block; height: 100%; background: var(--brand); }
+.daycol { flex: 0 0 150px; }
+.blocks { display: flex; gap: 6px; flex-wrap: wrap; }
+.modal ul { margin: 0 0 12px; padding-left: 20px; }
+.modal h2 { margin-top: 14px; font-size: 1rem; }

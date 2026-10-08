@@ -143,6 +143,37 @@ async function t(name, fn) { try { await fn(); passed++; console.log('  ok  ' + 
   await t('path traversal on static files is blocked', async () => {
     const res = await fetch(base + '/..%2fserver.js'); assert.equal(res.status, 404);
   });
+  await t('hour tracking: needs acknowledgement, counts one row per minute', async () => {
+    await call('a', 'POST', '/api/login', { username: 'somchai', password: 'brand-new-pass' });
+    assert.equal((await call('a', 'POST', '/api/activity')).status, 409, 'no tracking before acknowledgement');
+    assert.equal((await call('a', 'POST', '/api/tracking/ack', {})).status, 200);
+    const r1 = await call('a', 'POST', '/api/activity', {}); assert.equal(r1.status, 200);
+    const r2 = await call('a', 'POST', '/api/activity', {});
+    assert.equal(r2.json.today_minutes, r1.json.today_minutes, 'two beats in the same minute count once');
+    assert.ok(r1.json.today_minutes >= 1);
+  });
+  await t('hour report: local-day cutting, blocks, permissions', async () => {
+    const uid = staffA.id;
+    db.prepare('DELETE FROM activity WHERE user_id = ?').run(uid);
+    // 2026-03-02 local (UTC+7): day starts 2026-03-01T17:00Z
+    const startMin = Date.UTC(2026, 2, 2) / 60000 - 420;
+    const put = (m) => db.prepare('INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?,?)').run(uid, m);
+    for (let i = 9 * 60; i < 9 * 60 + 90; i++) put(startMin + i);          // 09:00-10:30 = 90 min
+    for (let i = 10 * 60 + 40; i < 11 * 60; i++) put(startMin + i);        // 10:40-11:00 = 20 min, gap 10 > 5 -> new block
+    put(startMin - 1);                                                     // 23:59 the day before (local)
+    put(startMin + 1440);                                                  // 00:00 next local day
+    const mgr = (await call('m2', 'GET', '/api/hours?from=2026-03-02&days=2')).json;
+    const me = mgr.users.find((u) => u.id === uid);
+    assert.equal(me.days[0].minutes, 110); assert.equal(me.days[1].minutes, 1); assert.equal(me.total_minutes, 111);
+    assert.equal(me.days[0].blocks.length, 2); assert.equal(me.days[0].blocks[0].minutes, 90);
+    assert.equal(me.days[0].first, new Date((startMin + 540) * 60000).toISOString());
+    const prev = (await call('m2', 'GET', '/api/hours?from=2026-03-01&days=1')).json.users.find((u) => u.id === uid);
+    assert.equal(prev.days[0].minutes, 1, 'minute before local midnight belongs to previous day');
+    const own = (await call('a', 'GET', '/api/hours?from=2026-03-02&days=2')).json;
+    assert.deepEqual(own.users.map((u) => u.id), [uid], 'staff only sees own hours');
+    assert.equal((await call('m2', 'GET', '/api/hours?from=2026-13-40')).status, 400);
+    assert.equal((await call('m2', 'GET', '/api/hours?from=2026-03-02&days=99')).status, 400);
+  });
   await t('logout invalidates the session', async () => {
     await call('a', 'POST', '/api/logout', {}); assert.equal((await call('a', 'GET', '/api/me')).status, 401);
   });

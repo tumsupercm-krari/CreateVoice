@@ -66,6 +66,56 @@
     return h('span', { class: 'chip', text: '📅 ' + label });
   }
 
+
+  // ---------- work-hour tracker ----------
+  // Sends a heartbeat every 30s while the tab is visible and the user touched the mouse/keyboard/screen in the last 2 minutes.
+  const IDLE_MS = 120_000, BEAT_MS = 30_000;
+  const fmtHM = (min) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+  const tracker = {
+    chip: h('span', { class: 'chip-hours hidden', title: 'เวลาที่ใช้งาน TaskBoard วันนี้ (นับเฉพาะตอนที่มีการใช้งานจริง)' }),
+    last: 0, timer: null, running: false,
+    bump() { const idle = Date.now() - tracker.last > IDLE_MS; tracker.last = Date.now(); if (idle && tracker.running) tracker.beat(); },
+    async beat() {
+      if (!state.me || !state.me.ack || document.visibilityState !== 'visible' || Date.now() - tracker.last > IDLE_MS) return;
+      try {
+        const r = await api('POST', '/api/activity', {});
+        tracker.chip.textContent = `วันนี้ ${fmtHM(r.today_minutes)} ชม.`; tracker.chip.classList.remove('hidden');
+      } catch { /* ignore: next beat retries */ }
+    },
+    start() {
+      if (tracker.running) return; tracker.running = true; tracker.last = Date.now();
+      for (const ev of ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart']) window.addEventListener(ev, tracker.throttledBump, { passive: true, capture: true });
+      tracker.timer = setInterval(tracker.beat, BEAT_MS); tracker.beat();
+    },
+    stop() {
+      tracker.running = false; clearInterval(tracker.timer); tracker.chip.classList.add('hidden');
+      for (const ev of ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart']) window.removeEventListener(ev, tracker.throttledBump, { capture: true });
+    },
+  };
+  let lastBumpCall = 0;
+  tracker.throttledBump = () => { const t = Date.now(); if (t - lastBumpCall > 1000) { lastBumpCall = t; tracker.bump(); } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && tracker.running) tracker.beat(); });
+
+  let ackShown = false;
+  function ensureTracking() {
+    if (!state.me) { tracker.stop(); ackShown = false; return; }
+    if (state.me.ack) { tracker.start(); return; }
+    if (ackShown) return; ackShown = true;
+    const btn = h('button', { class: 'btn', type: 'button', text: 'รับทราบและเริ่มใช้งาน', onclick: async () => {
+      btn.disabled = true;
+      try { await api('POST', '/api/tracking/ack', {}); state.me.ack = true; closeModal(); tracker.start(); toast('บันทึกการรับทราบแล้ว'); render(); } catch (e) { toast(e.message, true); btn.disabled = false; }
+    } });
+    openModal('การนับเวลาทำงานใน TaskBoard', [
+      h('p', { text: 'ระบบนี้นับเวลาที่คุณใช้งาน TaskBoard เพื่อทำรายงานชั่วโมงทำงานรายวันและรายสัปดาห์' }),
+      h('h2', { text: 'ระบบเก็บอะไร' }),
+      h('ul', {}, h('li', { text: 'เฉพาะนาทีที่เปิด TaskBoard อยู่หน้าจอและมีการขยับเมาส์ พิมพ์ หรือแตะหน้าจอ (หยุดนับเมื่อไม่มีการใช้งานเกิน 2 นาที หรือสลับไปแท็บ/โปรแกรมอื่น)' })),
+      h('h2', { text: 'ระบบไม่เก็บอะไร' }),
+      h('ul', {}, h('li', { text: 'ไม่จับภาพหน้าจอ ไม่บันทึกสิ่งที่พิมพ์ ไม่ดูเว็บไซต์หรือโปรแกรมอื่น' })),
+      h('h2', { text: 'ใครเห็นข้อมูลนี้' }),
+      h('ul', {}, h('li', { text: 'คุณเห็นของตัวเองได้ที่เมนู "ชั่วโมงของฉัน" และผู้จัดการเห็นของทุกคน' })),
+      h('p', { class: 'sub', text: 'งานที่ทำนอกแอปนี้ (เช่น ประชุม หรือทำเอกสารในโปรแกรมอื่น) จะไม่ถูกนับ' })], [btn]);
+  }
+
   // ---------- state & routing ----------
   const state = { me: null, users: [], boardUser: null };
   const isManager = () => state.me && state.me.role === 'manager';
@@ -96,10 +146,11 @@
     try {
       if (page === 'board') return await viewBoard(parts[1]);
       if (page === 'done') return await viewDone();
+      if (page === 'hours') return await viewHours();
       if (page === 'team' && manager) return await viewTeam();
       if (page === 'users' && manager) return await viewUsers();
       go('#/board');
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(e.message, true); } finally { ensureTracking(); }
   }
 
   // ---------- layout ----------
@@ -110,10 +161,11 @@
       isManager() && link('#/team', 'team', 'ภาพรวมทีม'),
       isManager() && link('#/board/all', 'all', 'งานทั้งหมด'),
       link('#/done', 'done', 'งานที่เสร็จแล้ว'),
+      link('#/hours', 'hours', isManager() ? 'ชั่วโมงทำงาน' : 'ชั่วโมงของฉัน'),
       isManager() && link('#/users', 'users', 'จัดการผู้ใช้'));
-    const who = h('div', { class: 'who' }, avatar(state.me),
+    const who = h('div', { class: 'who' }, tracker.chip, avatar(state.me),
       h('div', {}, state.me.name, h('small', { text: isManager() ? 'ผู้จัดการ' : 'พนักงาน' })),
-      h('button', { class: 'linkbtn', onclick: async () => { try { await api('POST', '/api/logout', {}); } catch { /* ignore */ } state.me = null; go('#/login'); }, text: 'ออกจากระบบ' }));
+      h('button', { class: 'linkbtn', onclick: async () => { tracker.stop(); try { await api('POST', '/api/logout', {}); } catch { /* ignore */ } state.me = null; go('#/login'); }, text: 'ออกจากระบบ' }));
     $app.replaceChildren(
       h('header', { class: 'top' }, h('div', { class: 'brand' }, h('i'), 'TaskBoard'), nav, who),
       h('main', {}, content));
@@ -381,6 +433,55 @@
     shell('done', [h('div', { class: 'pagehead' }, h('h1', { text: 'กระดานงานที่เสร็จแล้ว' }), h('span', { class: 'sub', text: 'เรียงตามวันที่ปิดงานล่าสุด' })), filters,
       h('div', { class: 'tablewrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['ชื่องาน', 'ผู้เกี่ยวข้อง', 'Deadline', 'ปิดงานเมื่อ', 'ปิดโดย'].map((x) => h('th', { text: x })))), tbody))]);
     await load();
+  }
+
+
+  // ---------- work hours report ----------
+  const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const dayShort = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }); };
+  let hoursTz = 420;   // server's day-cutting offset, so shown times match the day columns
+  const fmtTime = (iso) => new Date(new Date(iso).getTime() + hoursTz * 60000).toISOString().slice(11, 16);
+  const hoursText = (min) => `${Math.floor(min / 60)} ชม. ${min % 60} น.`;
+
+  async function viewHours(offsetWeeks = 0, pickId = null) {
+    const start = mondayOf(new Date()); start.setDate(start.getDate() + offsetWeeks * 7);
+    const from = ymdOf(start);
+    const data = await api('GET', `/api/hours?from=${from}&days=7`);
+    hoursTz = data.tz_offset_min;
+    const manager = isManager();
+    let picked = pickId != null ? data.users.find((u) => u.id === pickId) : (manager ? null : data.users[0]);
+    const maxDay = Math.max(480, ...data.users.flatMap((u) => u.days.map((d) => d.minutes)));
+    const end = data.dates[6];
+    const nav = h('div', { class: 'pagehead' }, h('h1', { text: manager ? 'ชั่วโมงทำงานของทีม' : 'ชั่วโมงของฉัน' }), h('span', { class: 'grow' }),
+      h('button', { class: 'btn ghost small', type: 'button', text: '‹ สัปดาห์ก่อน', onclick: () => viewHours(offsetWeeks - 1, picked && picked.id) }),
+      h('b', { text: `${fmtDay(from)} – ${fmtDay(end)}` }),
+      h('button', { class: 'btn ghost small', type: 'button', text: 'สัปดาห์ถัดไป ›', disabled: offsetWeeks >= 0, onclick: () => viewHours(offsetWeeks + 1, picked && picked.id) }),
+      offsetWeeks !== 0 && h('button', { class: 'btn small', type: 'button', text: 'สัปดาห์นี้', onclick: () => viewHours(0, picked && picked.id) }));
+    const rows = data.users.map((u) => {
+      const tr = h('tr', { class: manager ? 'click' : '', tabindex: manager ? '0' : null, 'aria-selected': picked && picked.id === u.id ? 'true' : null,
+        onclick: manager ? () => viewHours(offsetWeeks, u.id) : null, onkeydown: manager ? (e) => { if (e.key === 'Enter') viewHours(offsetWeeks, u.id); } : null },
+      h('td', {}, h('div', { class: 'who2' }, avatar(u), h('div', {}, h('b', { text: u.name }), !u.ack ? h('div', { class: 'sub', text: 'ยังไม่กดรับทราบ' }) : null))),
+      u.days.map((d) => { const cell = h('td', { class: 'hc' }, h('span', { text: d.minutes ? fmtHM(d.minutes) : '–' }));
+        if (d.minutes) { const bar = h('i', { class: 'hbar' }); bar.style.width = Math.min(100, d.minutes / maxDay * 100) + '%'; cell.append(h('div', { class: 'hbarwrap' }, bar)); } return cell; }),
+      h('td', { class: 'hc tot' }, h('b', { text: fmtHM(u.total_minutes) })));
+      if (picked && picked.id === u.id) tr.classList.add('sel');
+      return tr;
+    });
+    const table = h('div', { class: 'tablewrap' }, h('table', { class: 'hours' }, h('thead', {}, h('tr', {}, h('th', { text: 'พนักงาน' }), data.dates.map((d) => h('th', { class: 'hc', text: dayShort(d) })), h('th', { class: 'hc', text: 'รวม (ชม:นาที)' }))), h('tbody', {}, rows)));
+    let detail = null;
+    if (picked) {
+      detail = h('div', { class: 'panel' }, h('h2', { text: `รายละเอียด: ${picked.name}` }),
+        picked.days.map((d) => h('div', { class: 'line' }, h('div', { class: 'daycol' }, h('b', { text: dayShort(d.date) }), h('div', { class: 'sub', text: d.minutes ? hoursText(d.minutes) : 'ไม่มีการใช้งาน' })),
+          h('div', { class: 'grow blocks' }, d.blocks.length ? d.blocks.map((b) => h('span', { class: 'chip', title: hoursText(b.minutes), text: `${fmtTime(b.start)}–${fmtTime(b.end)}` })) : null),
+          d.first ? h('span', { class: 'sub', text: `เริ่ม ${fmtTime(d.first)} · ล่าสุด ${fmtTime(d.last)}` }) : null)));
+    }
+    const totalAll = data.users.reduce((a, u) => a + u.total_minutes, 0);
+    shell('hours', [nav,
+      h('p', { class: 'note', text: 'นับเฉพาะเวลาที่เปิด TaskBoard อยู่หน้าจอและมีการใช้งานจริง (เมาส์ คีย์บอร์ด หรือสัมผัส ห่างกันไม่เกิน 2 นาที) งานที่ทำนอกแอปนี้ เช่น ประชุมหรือโปรแกรมอื่น ไม่ถูกนับ ดังนั้นตัวเลขนี้เป็นเวลาใช้งานในแอป ไม่ใช่เวลาเข้า-ออกงาน' }),
+      h('br'), table,
+      manager && h('p', { class: 'sub', text: `รวมทั้งทีมในสัปดาห์ที่เลือก ${hoursText(totalAll)} · กดที่ชื่อพนักงานเพื่อดูช่วงเวลาแต่ละวัน` }),
+      detail]);
   }
 
   // ---------- user management (manager) ----------
