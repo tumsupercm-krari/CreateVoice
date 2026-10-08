@@ -144,10 +144,8 @@ async function t(name, fn) { try { await fn(); passed++; console.log('  ok  ' + 
   await t('path traversal on static files is blocked', async () => {
     const res = await fetch(base + '/..%2fserver.js'); assert.equal(res.status, 404);
   });
-  await t('hour tracking: needs acknowledgement, counts one row per minute', async () => {
+  await t('hour tracking: counts one row per minute, no acknowledgement step', async () => {
     await call('a', 'POST', '/api/login', { username: 'somchai', password: 'brand-new-pass' });
-    assert.equal((await call('a', 'POST', '/api/activity')).status, 409, 'no tracking before acknowledgement');
-    assert.equal((await call('a', 'POST', '/api/tracking/ack', {})).status, 200);
     const r1 = await call('a', 'POST', '/api/activity', {}); assert.equal(r1.status, 200);
     const r2 = await call('a', 'POST', '/api/activity', {});
     assert.equal(r2.json.today_minutes, r1.json.today_minutes, 'two beats in the same minute count once');
@@ -186,13 +184,13 @@ async function t(name, fn) { try { await fn(); passed++; console.log('  ok  ' + 
     assert.equal((await post('erp-test-key-0123456789abcdef', { events: [] })).status, 400);
     assert.equal((await post('erp-test-key-0123456789abcdef', { events: new Array(501).fill({ username: 'x' }) })).status, 400);
   });
-  await t('ingest: unknown / unacknowledged users skipped, bad times rejected, minutes merged without double counting', async () => {
+  await t('ingest: unknown users skipped, bad times rejected, minutes merged without double counting', async () => {
     const post = (body) => fetch(base + '/api/ingest/activity', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer erp-test-key-0123456789abcdef' }, body: JSON.stringify(body) }).then((r) => r.json());
     const uid = staffA.id; db.prepare('DELETE FROM activity WHERE user_id = ?').run(uid); db.prepare('DELETE FROM activity_source WHERE user_id = ?').run(uid);
     const day = new Date(Date.now() - 10 * 864e5 + 420 * 60000).toISOString().slice(0, 10);   // a recent local day
     const t0 = Date.parse(day + 'T03:00:00Z');                                              // 10:00 local
-    const r = await post({ events: [{ username: 'SomChai', at: t0 }, { username: 'ghost', at: t0 }, { username: 'newbie', at: t0 }, { username: 'somchai', at: 'not-a-date' }, { username: 'somchai', at: Date.now() + 3_600_000 }] });
-    assert.equal(r.accepted_minutes, 1); assert.deepEqual(r.unknown_users, ['ghost']); assert.deepEqual(r.not_acknowledged, ['newbie']); assert.equal(r.rejected_events, 2);
+    const r = await post({ events: [{ username: 'SomChai', at: t0 }, { username: 'ghost', at: t0 }, { username: 'somchai', at: 'not-a-date' }, { username: 'somchai', at: Date.now() + 3_600_000 }] });
+    assert.equal(r.accepted_minutes, 1); assert.deepEqual(r.unknown_users, ['ghost']); assert.equal(r.rejected_events, 2);
     // taskboard heartbeat on the same minute + an overlapping erp window -> union
     db.prepare("INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?, ?)").run(uid, Math.floor(t0 / 60000));
     db.prepare("INSERT OR IGNORE INTO activity_source (user_id, minute, source) VALUES (?, ?, 'taskboard')").run(uid, Math.floor(t0 / 60000));

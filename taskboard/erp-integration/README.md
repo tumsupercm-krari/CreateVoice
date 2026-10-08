@@ -17,7 +17,7 @@
    (ถ้า ERP ใช้ CSRF token ใส่ `data-csrf-header="X-CSRF-Token" data-csrf-meta="csrf-token"`)
 3. **เพิ่ม route ใน server ERP** `POST /api/work-heartbeat` ที่ต้องล็อกอินก่อน แล้วเรียก `forwardHeartbeat(username)` โดยเอา username จาก session ของ ERP **ห้ามเอาจาก body ของคำขอ** (ไม่งั้นใครก็ส่งเวลาแทนคนอื่นได้) ตัวอย่าง Node.js อยู่ใน `forward-heartbeat.js`
 4. **จับคู่ผู้ใช้** username ที่ส่งต้องตรงกับ username ใน TaskBoard (ไม่สนตัวพิมพ์เล็กใหญ่) ถ้า ERP ใช้ชื่อรูปแบบอื่น (เช่น รหัสพนักงาน) ให้แปลงก่อนส่ง หรือสร้างบัญชีใน TaskBoard ด้วย username เดียวกัน
-5. **ให้พนักงานกดรับทราบใน TaskBoard** ครั้งแรก ผู้ที่ยังไม่รับทราบจะไม่ถูกนับ (TaskBoard ตอบกลับรายชื่อใน `not_acknowledged`) ควรแจ้งพนักงานด้วยว่า ERP ก็ถูกนับเวลาด้วย
+5. **แจ้งพนักงาน** ว่าเวลาใช้งาน ERP ถูกนับรวมในรายงานชั่วโมงทำงานด้วย (ทางนโยบายบริษัทหรือประกาศภายใน)
 
 ลองก่อนใช้จริง: `node erp-integration/demo/fake-erp.js` เปิด ERP จำลองที่ http://localhost:4000 (ใช้กับ TaskBoard ที่ตั้ง `INGEST_KEYS=erp=erp-demo-key-0123456789abcdef`)
 

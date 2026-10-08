@@ -159,10 +159,10 @@ function createSession(userId) {
 function getUser(req) {
   const token = parseCookies(req).sid;
   if (!token) return null;
-  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role, u.active, u.tracking_ack_at, s.expires_at FROM sessions s
+  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role, u.active, s.expires_at FROM sessions s
     JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`).get(sha(token));
   if (!row || !row.active || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, name: row.name, role: row.role, ack: !!row.tracking_ack_at };
+  return { id: row.id, username: row.username, name: row.name, role: row.role };
 }
 
 // simple login throttle: 8 failures per username per 10 minutes
@@ -203,7 +203,7 @@ function cleanDeadline(v) {
 const cleanRole = (v) => { if (v !== 'manager' && v !== 'staff') throw bad('ตำแหน่งไม่ถูกต้อง'); return v; };
 const cleanStatus = (v) => { if (!STATUSES.includes(v)) throw bad('สถานะงานไม่ถูกต้อง'); return v; };
 
-const publicUser = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, active: !!u.active, created_at: u.created_at, ack: !!u.tracking_ack_at });
+const publicUser = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, active: !!u.active, created_at: u.created_at });
 const requireManager = (user) => { if (user.role !== 'manager') throw new HttpError(403, 'เฉพาะผู้จัดการเท่านั้น'); };
 const activeManagerCount = () => db.prepare("SELECT COUNT(*) c FROM users WHERE role='manager' AND active=1").get().c;
 
@@ -478,17 +478,16 @@ route('POST', '/api/ingest/activity', { auth: false, ingest: true }, ({ source }
   const extend = b.extend_minutes == null ? 0 : Number(b.extend_minutes);
   if (!Number.isInteger(extend) || extend < 0 || extend > 5) throw bad('extend_minutes ต้องเป็น 0-5');
   const nowMs = Date.now(), users = new Map();
-  const res = { source, accepted_minutes: 0, unknown_users: [], not_acknowledged: [], rejected_events: 0 };
+  const res = { source, accepted_minutes: 0, unknown_users: [], rejected_events: 0 };
   db.exec('BEGIN');
   try {
     for (const ev of b.events) {
       const uname = ev && typeof ev.username === 'string' ? ev.username.trim().toLowerCase() : '';
       const at = ev && ev.at != null ? (typeof ev.at === 'number' ? ev.at : Date.parse(ev.at)) : nowMs;
       if (!uname || !Number.isFinite(at) || at > nowMs + 120_000 || at < nowMs - 31 * 864e5) { res.rejected_events++; continue; }
-      if (!users.has(uname)) users.set(uname, db.prepare('SELECT id, active, tracking_ack_at FROM users WHERE username = ?').get(uname) || null);
+      if (!users.has(uname)) users.set(uname, db.prepare('SELECT id, active FROM users WHERE username = ?').get(uname) || null);
       const u = users.get(uname);
       if (!u || !u.active) { if (!res.unknown_users.includes(uname)) res.unknown_users.push(uname); continue; }
-      if (!u.tracking_ack_at) { if (!res.not_acknowledged.includes(uname)) res.not_acknowledged.push(uname); continue; }
       const base = Math.floor(at / 60000), maxMinute = Math.floor(nowMs / 60000);
       for (let i = 0; i <= extend && base + i <= maxMinute; i++) { markActive(u.id, base + i, source); res.accepted_minutes++; }
     }
@@ -497,13 +496,7 @@ route('POST', '/api/ingest/activity', { auth: false, ingest: true }, ({ source }
   return res;
 });
 
-route('POST', '/api/tracking/ack', { auth: true }, ({ user }) => {
-  db.prepare('UPDATE users SET tracking_ack_at = COALESCE(tracking_ack_at, ?) WHERE id = ?').run(now(), user.id);
-  return { ok: true };
-});
-
 route('POST', '/api/activity', { auth: true }, ({ user }) => {
-  if (!user.ack) throw new HttpError(409, 'ต้องกดรับทราบเงื่อนไขการนับเวลาก่อน');
   const minute = Math.floor(Date.now() / 60000);
   markActive(user.id, minute, 'taskboard');
   const start = localDay(minute) * 1440 - TZ_OFFSET_MIN;
@@ -519,8 +512,8 @@ route('GET', '/api/hours', { auth: true }, ({ user, url }) => {
   const lo = dayStartMinute(from), hi = lo + days * 1440;
   const dates = Array.from({ length: days }, (_, i) => ymdAddDays(from, i));
   const who = user.role === 'manager'
-    ? db.prepare('SELECT id, name, role, tracking_ack_at FROM users WHERE active = 1 ORDER BY role, name').all()
-    : db.prepare('SELECT id, name, role, tracking_ack_at FROM users WHERE id = ?').all(user.id);
+    ? db.prepare('SELECT id, name, role FROM users WHERE active = 1 ORDER BY role, name').all()
+    : db.prepare('SELECT id, name, role FROM users WHERE id = ?').all(user.id);
   const rows = db.prepare(`SELECT user_id, minute FROM activity WHERE minute >= ? AND minute < ?
     ${user.role === 'manager' ? '' : 'AND user_id = ' + Number(user.id)} ORDER BY user_id, minute`).all(lo, hi);
   const srcRows = db.prepare(`SELECT user_id, source, COUNT(*) c FROM activity_source WHERE minute >= ? AND minute < ?
@@ -541,7 +534,7 @@ route('GET', '/api/hours', { auth: true }, ({ user, url }) => {
       if (blk && blk.day === d && m - blk.endMin <= BLOCK_GAP_MIN) { blk.endMin = m + 1; blk.minutes++; blk.ref.end = minuteIso(m + 1); blk.ref.minutes++; }
       else { const ref = { start: minuteIso(m), end: minuteIso(m + 1), minutes: 1 }; d.blocks.push(ref); blk = { day: d, endMin: m + 1, minutes: 1, ref }; }
     }
-    return { id: u.id, name: u.name, role: u.role, ack: !!u.tracking_ack_at, total_minutes: mins.length, by_source: srcByUser.get(u.id) || {}, days: perDay };
+    return { id: u.id, name: u.name, role: u.role, total_minutes: mins.length, by_source: srcByUser.get(u.id) || {}, days: perDay };
   });
   return { from, days, dates, tz_offset_min: TZ_OFFSET_MIN, users };
 });

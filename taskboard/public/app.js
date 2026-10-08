@@ -76,7 +76,7 @@
     last: 0, timer: null, running: false,
     bump() { const idle = Date.now() - tracker.last > IDLE_MS; tracker.last = Date.now(); if (idle && tracker.running) tracker.beat(); },
     async beat() {
-      if (!state.me || !state.me.ack || document.visibilityState !== 'visible' || Date.now() - tracker.last > IDLE_MS) return;
+      if (!state.me || document.visibilityState !== 'visible' || Date.now() - tracker.last > IDLE_MS) return;
       try {
         const r = await api('POST', '/api/activity', {});
         tracker.chip.textContent = `วันนี้ ${fmtHM(r.today_minutes)} ชม.`; tracker.chip.classList.remove('hidden');
@@ -96,25 +96,7 @@
   tracker.throttledBump = () => { const t = Date.now(); if (t - lastBumpCall > 1000) { lastBumpCall = t; tracker.bump(); } };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && tracker.running) tracker.beat(); });
 
-  let ackShown = false;
-  function ensureTracking() {
-    if (!state.me) { tracker.stop(); ackShown = false; return; }
-    if (state.me.ack) { tracker.start(); return; }
-    if (ackShown) return; ackShown = true;
-    const btn = h('button', { class: 'btn', type: 'button', text: 'รับทราบและเริ่มใช้งาน', onclick: async () => {
-      btn.disabled = true;
-      try { await api('POST', '/api/tracking/ack', {}); state.me.ack = true; closeModal(); tracker.start(); toast('บันทึกการรับทราบแล้ว'); render(); } catch (e) { toast(e.message, true); btn.disabled = false; }
-    } });
-    openModal('การนับเวลาทำงานใน TaskBoard', [
-      h('p', { text: 'ระบบนี้นับเวลาที่คุณใช้งาน TaskBoard เพื่อทำรายงานชั่วโมงทำงานรายวันและรายสัปดาห์' }),
-      h('h2', { text: 'ระบบเก็บอะไร' }),
-      h('ul', {}, h('li', { text: 'เฉพาะนาทีที่เปิด TaskBoard อยู่หน้าจอและมีการขยับเมาส์ พิมพ์ หรือแตะหน้าจอ (หยุดนับเมื่อไม่มีการใช้งานเกิน 2 นาที หรือสลับไปแท็บ/โปรแกรมอื่น)' })),
-      h('h2', { text: 'ระบบไม่เก็บอะไร' }),
-      h('ul', {}, h('li', { text: 'ไม่จับภาพหน้าจอ ไม่บันทึกสิ่งที่พิมพ์ ไม่ดูเว็บไซต์หรือโปรแกรมอื่น' })),
-      h('h2', { text: 'ใครเห็นข้อมูลนี้' }),
-      h('ul', {}, h('li', { text: 'คุณเห็นของตัวเองได้ที่เมนู "ชั่วโมงของฉัน" และผู้จัดการเห็นของทุกคน' })),
-      h('p', { class: 'sub', text: 'งานที่ทำนอกแอปนี้ (เช่น ประชุม หรือทำเอกสารในโปรแกรมอื่น) จะไม่ถูกนับ' })], [btn]);
-  }
+  function ensureTracking() { if (state.me) tracker.start(); else tracker.stop(); }
 
   // ---------- state & routing ----------
   const state = { me: null, users: [], boardUser: null };
@@ -463,7 +445,7 @@
     const rows = data.users.map((u) => {
       const tr = h('tr', { class: manager ? 'click' : '', tabindex: manager ? '0' : null, 'aria-selected': picked && picked.id === u.id ? 'true' : null,
         onclick: manager ? () => viewHours(offsetWeeks, u.id) : null, onkeydown: manager ? (e) => { if (e.key === 'Enter') viewHours(offsetWeeks, u.id); } : null },
-      h('td', {}, h('div', { class: 'who2' }, avatar(u), h('div', {}, h('b', { text: u.name }), !u.ack ? h('div', { class: 'sub', text: 'ยังไม่กดรับทราบ' }) : null, Object.keys(u.by_source).length > 1 || (Object.keys(u.by_source)[0] || 'taskboard') !== 'taskboard' ? h('div', { class: 'sub', text: srcText(u) }) : null))),
+      h('td', {}, h('div', { class: 'who2' }, avatar(u), h('div', {}, h('b', { text: u.name }), Object.keys(u.by_source).length > 1 || (Object.keys(u.by_source)[0] || 'taskboard') !== 'taskboard' ? h('div', { class: 'sub', text: srcText(u) }) : null))),
       u.days.map((d) => { const cell = h('td', { class: 'hc' }, h('span', { text: d.minutes ? fmtHM(d.minutes) : '–' }));
         if (d.minutes) { const bar = h('i', { class: 'hbar' }); bar.style.width = Math.min(100, d.minutes / maxDay * 100) + '%'; cell.append(h('div', { class: 'hbarwrap' }, bar)); } return cell; }),
       h('td', { class: 'hc tot' }, h('b', { text: fmtHM(u.total_minutes) })));
