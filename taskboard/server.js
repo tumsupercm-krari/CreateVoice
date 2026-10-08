@@ -11,9 +11,21 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'taskboard.d
 const SETUP_KEY = process.env.SETUP_KEY || '';          // optional: required to create the first manager
 const SESSION_DAYS = 7;
 const TZ_OFFSET_MIN = Number(process.env.TZ_OFFSET_MIN ?? 420);   // Asia/Bangkok = UTC+7; used to cut days for hour reports
+const INGEST_KEYS = parseIngestKeys(process.env.INGEST_KEYS || '');   // "erp=secret1,crm=secret2": systems allowed to report activity
 const BLOCK_GAP_MIN = 5;                                          // active minutes closer than this form one work block
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATUSES = ['todo', 'doing', 'review', 'done'];
+
+function parseIngestKeys(spec) {
+  const out = [];
+  for (const part of spec.split(',').map((x) => x.trim()).filter(Boolean)) {
+    const i = part.indexOf('=');
+    const name = part.slice(0, i).trim().toLowerCase(), key = part.slice(i + 1).trim();
+    if (i < 1 || !/^[a-z0-9_-]{1,20}$/.test(name) || key.length < 24) { console.warn(`INGEST_KEYS: ignoring invalid entry "${part.split('=')[0]}" (name a-z0-9_- and key of 24+ chars required)`); continue; }
+    out.push({ name, hash: crypto.createHash('sha256').update(key).digest() });
+  }
+  return out;
+}
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
@@ -78,6 +90,14 @@ CREATE TABLE IF NOT EXISTS activity (
   PRIMARY KEY (user_id, minute)
 ) WITHOUT ROWID;
 `);
+const hadSource = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='activity_source'").get();
+db.exec(`CREATE TABLE IF NOT EXISTS activity_source (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  minute INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  PRIMARY KEY (user_id, minute, source)
+) WITHOUT ROWID;`);
+if (!hadSource) db.exec("INSERT OR IGNORE INTO activity_source (user_id, minute, source) SELECT user_id, minute, 'taskboard' FROM activity");
 if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'tracking_ack_at')) db.exec('ALTER TABLE users ADD COLUMN tracking_ack_at TEXT');
 
 // ---------- helpers ----------
@@ -438,6 +458,45 @@ const dayStartMinute = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); 
 const ymdAddDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const minuteIso = (min) => new Date(min * 60000).toISOString();
 
+function markActive(userId, minute, source) {
+  db.prepare('INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?, ?)').run(userId, minute);
+  db.prepare('INSERT OR IGNORE INTO activity_source (user_id, minute, source) VALUES (?, ?, ?)').run(userId, minute, source);
+}
+
+// Other company systems (ERP, ...) report activity here, server to server, with a per-system API key.
+// Minutes are merged with TaskBoard's own, so time spent in both systems at once is counted only once.
+function ingestSource(req) {
+  const m = /^Bearer\s+(.+)$/.exec(req.headers.authorization || '');
+  if (!m || !INGEST_KEYS.length) return null;
+  const given = crypto.createHash('sha256').update(m[1].trim()).digest();
+  let found = null;
+  for (const k of INGEST_KEYS) if (crypto.timingSafeEqual(k.hash, given)) found = k.name;   // check all: constant time
+  return found;
+}
+route('POST', '/api/ingest/activity', { auth: false, ingest: true }, ({ source }, b) => {
+  if (!Array.isArray(b.events) || !b.events.length || b.events.length > 500) throw bad('events ต้องเป็นรายการ 1-500 รายการ');
+  const extend = b.extend_minutes == null ? 0 : Number(b.extend_minutes);
+  if (!Number.isInteger(extend) || extend < 0 || extend > 5) throw bad('extend_minutes ต้องเป็น 0-5');
+  const nowMs = Date.now(), users = new Map();
+  const res = { source, accepted_minutes: 0, unknown_users: [], not_acknowledged: [], rejected_events: 0 };
+  db.exec('BEGIN');
+  try {
+    for (const ev of b.events) {
+      const uname = ev && typeof ev.username === 'string' ? ev.username.trim().toLowerCase() : '';
+      const at = ev && ev.at != null ? (typeof ev.at === 'number' ? ev.at : Date.parse(ev.at)) : nowMs;
+      if (!uname || !Number.isFinite(at) || at > nowMs + 120_000 || at < nowMs - 31 * 864e5) { res.rejected_events++; continue; }
+      if (!users.has(uname)) users.set(uname, db.prepare('SELECT id, active, tracking_ack_at FROM users WHERE username = ?').get(uname) || null);
+      const u = users.get(uname);
+      if (!u || !u.active) { if (!res.unknown_users.includes(uname)) res.unknown_users.push(uname); continue; }
+      if (!u.tracking_ack_at) { if (!res.not_acknowledged.includes(uname)) res.not_acknowledged.push(uname); continue; }
+      const base = Math.floor(at / 60000), maxMinute = Math.floor(nowMs / 60000);
+      for (let i = 0; i <= extend && base + i <= maxMinute; i++) { markActive(u.id, base + i, source); res.accepted_minutes++; }
+    }
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  return res;
+});
+
 route('POST', '/api/tracking/ack', { auth: true }, ({ user }) => {
   db.prepare('UPDATE users SET tracking_ack_at = COALESCE(tracking_ack_at, ?) WHERE id = ?').run(now(), user.id);
   return { ok: true };
@@ -446,7 +505,7 @@ route('POST', '/api/tracking/ack', { auth: true }, ({ user }) => {
 route('POST', '/api/activity', { auth: true }, ({ user }) => {
   if (!user.ack) throw new HttpError(409, 'ต้องกดรับทราบเงื่อนไขการนับเวลาก่อน');
   const minute = Math.floor(Date.now() / 60000);
-  db.prepare('INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?, ?)').run(user.id, minute);
+  markActive(user.id, minute, 'taskboard');
   const start = localDay(minute) * 1440 - TZ_OFFSET_MIN;
   const today = db.prepare('SELECT COUNT(*) c FROM activity WHERE user_id = ? AND minute >= ? AND minute < ?').get(user.id, start, start + 1440).c;
   return { today_minutes: today };
@@ -464,6 +523,10 @@ route('GET', '/api/hours', { auth: true }, ({ user, url }) => {
     : db.prepare('SELECT id, name, role, tracking_ack_at FROM users WHERE id = ?').all(user.id);
   const rows = db.prepare(`SELECT user_id, minute FROM activity WHERE minute >= ? AND minute < ?
     ${user.role === 'manager' ? '' : 'AND user_id = ' + Number(user.id)} ORDER BY user_id, minute`).all(lo, hi);
+  const srcRows = db.prepare(`SELECT user_id, source, COUNT(*) c FROM activity_source WHERE minute >= ? AND minute < ?
+    ${user.role === 'manager' ? '' : 'AND user_id = ' + Number(user.id)} GROUP BY user_id, source`).all(lo, hi);
+  const srcByUser = new Map();
+  for (const r of srcRows) { if (!srcByUser.has(r.user_id)) srcByUser.set(r.user_id, {}); srcByUser.get(r.user_id)[r.source] = r.c; }
   const byUser = new Map();
   for (const r of rows) { if (!byUser.has(r.user_id)) byUser.set(r.user_id, []); byUser.get(r.user_id).push(r.minute); }
   const users = who.map((u) => {
@@ -478,7 +541,7 @@ route('GET', '/api/hours', { auth: true }, ({ user, url }) => {
       if (blk && blk.day === d && m - blk.endMin <= BLOCK_GAP_MIN) { blk.endMin = m + 1; blk.minutes++; blk.ref.end = minuteIso(m + 1); blk.ref.minutes++; }
       else { const ref = { start: minuteIso(m), end: minuteIso(m + 1), minutes: 1 }; d.blocks.push(ref); blk = { day: d, endMin: m + 1, minutes: 1, ref }; }
     }
-    return { id: u.id, name: u.name, role: u.role, ack: !!u.tracking_ack_at, total_minutes: mins.length, days: perDay };
+    return { id: u.id, name: u.name, role: u.role, ack: !!u.tracking_ack_at, total_minutes: mins.length, by_source: srcByUser.get(u.id) || {}, days: perDay };
   });
   return { from, days, dates, tz_offset_min: TZ_OFFSET_MIN, users };
 });
@@ -506,12 +569,13 @@ const server = http.createServer(async (req, res) => {
       return serveStatic(req, res, decodeURIComponent(url.pathname));
     }
     const mutating = req.method !== 'GET' && req.method !== 'HEAD';
-    if (mutating && req.headers['x-requested-with'] !== 'taskboard') throw new HttpError(403, 'คำขอไม่ถูกต้อง');
+    if (mutating && !url.pathname.startsWith('/api/ingest/') && req.headers['x-requested-with'] !== 'taskboard') throw new HttpError(403, 'คำขอไม่ถูกต้อง');
     for (const r of routes) {
       if (r.method !== req.method) continue;
       const m = r.re.exec(url.pathname);
       if (!m) continue;
       const ctx = { req, url, params: m.groups || {}, user: null };
+      if (r.opts.ingest) { ctx.source = ingestSource(req); if (!ctx.source) throw new HttpError(401, 'API key ไม่ถูกต้อง'); }
       if (r.opts.auth) { ctx.user = getUser(req); if (!ctx.user) throw new HttpError(401, 'กรุณาเข้าสู่ระบบ'); }
       const body = mutating ? await readJson(req) : {};
       const out = r.fn(ctx, body);

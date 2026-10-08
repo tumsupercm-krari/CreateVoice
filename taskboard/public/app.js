@@ -442,6 +442,8 @@
   const dayShort = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }); };
   let hoursTz = 420;   // server's day-cutting offset, so shown times match the day columns
   const fmtTime = (iso) => new Date(new Date(iso).getTime() + hoursTz * 60000).toISOString().slice(11, 16);
+  const srcLabel = (k) => (k === 'taskboard' ? 'TaskBoard' : k.toUpperCase());
+  const srcText = (u) => Object.entries(u.by_source).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${srcLabel(k)} ${fmtHM(v)}`).join(' · ');
   const hoursText = (min) => `${Math.floor(min / 60)} ชม. ${min % 60} น.`;
 
   async function viewHours(offsetWeeks = 0, pickId = null) {
@@ -461,7 +463,7 @@
     const rows = data.users.map((u) => {
       const tr = h('tr', { class: manager ? 'click' : '', tabindex: manager ? '0' : null, 'aria-selected': picked && picked.id === u.id ? 'true' : null,
         onclick: manager ? () => viewHours(offsetWeeks, u.id) : null, onkeydown: manager ? (e) => { if (e.key === 'Enter') viewHours(offsetWeeks, u.id); } : null },
-      h('td', {}, h('div', { class: 'who2' }, avatar(u), h('div', {}, h('b', { text: u.name }), !u.ack ? h('div', { class: 'sub', text: 'ยังไม่กดรับทราบ' }) : null))),
+      h('td', {}, h('div', { class: 'who2' }, avatar(u), h('div', {}, h('b', { text: u.name }), !u.ack ? h('div', { class: 'sub', text: 'ยังไม่กดรับทราบ' }) : null, Object.keys(u.by_source).length > 1 || (Object.keys(u.by_source)[0] || 'taskboard') !== 'taskboard' ? h('div', { class: 'sub', text: srcText(u) }) : null))),
       u.days.map((d) => { const cell = h('td', { class: 'hc' }, h('span', { text: d.minutes ? fmtHM(d.minutes) : '–' }));
         if (d.minutes) { const bar = h('i', { class: 'hbar' }); bar.style.width = Math.min(100, d.minutes / maxDay * 100) + '%'; cell.append(h('div', { class: 'hbarwrap' }, bar)); } return cell; }),
       h('td', { class: 'hc tot' }, h('b', { text: fmtHM(u.total_minutes) })));
@@ -472,6 +474,7 @@
     let detail = null;
     if (picked) {
       detail = h('div', { class: 'panel' }, h('h2', { text: `รายละเอียด: ${picked.name}` }),
+        Object.keys(picked.by_source).length ? h('p', { class: 'sub', text: `แยกตามระบบ: ${srcText(picked)} (ชั่วโมงรวมไม่นับเวลาที่ใช้หลายระบบพร้อมกันซ้ำ)` }) : null,
         picked.days.map((d) => h('div', { class: 'line' }, h('div', { class: 'daycol' }, h('b', { text: dayShort(d.date) }), h('div', { class: 'sub', text: d.minutes ? hoursText(d.minutes) : 'ไม่มีการใช้งาน' })),
           h('div', { class: 'grow blocks' }, d.blocks.length ? d.blocks.map((b) => h('span', { class: 'chip', title: hoursText(b.minutes), text: `${fmtTime(b.start)}–${fmtTime(b.end)}` })) : null),
           d.first ? h('span', { class: 'sub', text: `เริ่ม ${fmtTime(d.first)} · ล่าสุด ${fmtTime(d.last)}` }) : null)));

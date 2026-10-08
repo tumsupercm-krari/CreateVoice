@@ -1,5 +1,6 @@
 'use strict';
 // API tests: run with `npm test`. Uses a throwaway database.
+process.env.INGEST_KEYS = 'erp=erp-test-key-0123456789abcdef,short=tooshort';
 process.env.DB_PATH = require('node:path').join(require('node:os').tmpdir(), `tb-test-${process.pid}.db`);
 const assert = require('node:assert/strict');
 const { server, db } = require('../server.js');
@@ -173,6 +174,33 @@ async function t(name, fn) { try { await fn(); passed++; console.log('  ok  ' + 
     assert.deepEqual(own.users.map((u) => u.id), [uid], 'staff only sees own hours');
     assert.equal((await call('m2', 'GET', '/api/hours?from=2026-13-40')).status, 400);
     assert.equal((await call('m2', 'GET', '/api/hours?from=2026-03-02&days=99')).status, 400);
+  });
+  await t('ingest: needs a valid per-system key; no CSRF header needed for server-to-server', async () => {
+    const post = (key, body) => fetch(base + '/api/ingest/activity', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: 'Bearer ' + key } : {}) }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json() }));
+    const ev = { events: [{ username: 'somchai' }] };
+    assert.equal((await post(null, ev)).status, 401);
+    assert.equal((await post('wrong-key-wrong-key-wrong-key', ev)).status, 401);
+    assert.equal((await post('tooshort', ev)).status, 401, 'invalid configured keys are ignored');
+    const ok = await post('erp-test-key-0123456789abcdef', ev);
+    assert.equal(ok.status, 200); assert.equal(ok.json.source, 'erp'); assert.equal(ok.json.accepted_minutes, 1);
+    assert.equal((await post('erp-test-key-0123456789abcdef', { events: [] })).status, 400);
+    assert.equal((await post('erp-test-key-0123456789abcdef', { events: new Array(501).fill({ username: 'x' }) })).status, 400);
+  });
+  await t('ingest: unknown / unacknowledged users skipped, bad times rejected, minutes merged without double counting', async () => {
+    const post = (body) => fetch(base + '/api/ingest/activity', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer erp-test-key-0123456789abcdef' }, body: JSON.stringify(body) }).then((r) => r.json());
+    const uid = staffA.id; db.prepare('DELETE FROM activity WHERE user_id = ?').run(uid); db.prepare('DELETE FROM activity_source WHERE user_id = ?').run(uid);
+    const day = new Date(Date.now() - 10 * 864e5 + 420 * 60000).toISOString().slice(0, 10);   // a recent local day
+    const t0 = Date.parse(day + 'T03:00:00Z');                                              // 10:00 local
+    const r = await post({ events: [{ username: 'SomChai', at: t0 }, { username: 'ghost', at: t0 }, { username: 'newbie', at: t0 }, { username: 'somchai', at: 'not-a-date' }, { username: 'somchai', at: Date.now() + 3_600_000 }] });
+    assert.equal(r.accepted_minutes, 1); assert.deepEqual(r.unknown_users, ['ghost']); assert.deepEqual(r.not_acknowledged, ['newbie']); assert.equal(r.rejected_events, 2);
+    // taskboard heartbeat on the same minute + an overlapping erp window -> union
+    db.prepare("INSERT OR IGNORE INTO activity (user_id, minute) VALUES (?, ?)").run(uid, Math.floor(t0 / 60000));
+    db.prepare("INSERT OR IGNORE INTO activity_source (user_id, minute, source) VALUES (?, ?, 'taskboard')").run(uid, Math.floor(t0 / 60000));
+    await post({ events: [{ username: 'somchai', at: t0 }], extend_minutes: 4 });                   // 10:00-10:04 from erp
+    const me = (await call('m2', 'GET', `/api/hours?from=${day}&days=1`)).json.users.find((u) => u.id === uid);
+    assert.equal(me.total_minutes, 5, 'union of both systems, minute shared by both counted once');
+    assert.deepEqual(me.by_source, { erp: 5, taskboard: 1 });
+    assert.equal((await post({ events: [{ username: 'somchai', at: t0 }], extend_minutes: 9 })).error, 'extend_minutes ต้องเป็น 0-5');
   });
   await t('logout invalidates the session', async () => {
     await call('a', 'POST', '/api/logout', {}); assert.equal((await call('a', 'GET', '/api/me')).status, 401);
